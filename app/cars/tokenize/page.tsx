@@ -2,16 +2,94 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import { useRouter } from 'next/navigation';
+//import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ConnectWallet } from '@coinbase/onchainkit/wallet';
 
+// Define types for formData
+type Propietario = {
+  nombreCompleto: string;
+  tipoDocumento: string;
+  numeroDocumento: string;
+};
+
+type Vehiculo = {
+  placa: string;
+  fechaMatriculaInicial: string;
+  marca: string;
+  linea: string;
+  modelo: string;
+  cilindraje: string;
+  color: string;
+  servicio: string;
+  claseVehiculo: string;
+  tipoCarroceria: string;
+  combustible: string;
+  capacidad: string;
+  numeroMotor: string;
+  vin: string;
+  numeroSerie: string;
+  numeroChasis: string;
+  blindaje: string;
+  declaracionImportacion: string;
+  fechaImportacion: string;
+};
+
+type Ubicacion = {
+  estado: string;
+  kilometraje: string;
+  contactoCelular: string;
+  departamento: string;
+  ciudad: string;
+};
+
+type Soat = {
+  entidad: string;
+  numeroPoliza: string;
+  fechaExpedicion: string;
+  fechaInicioVigencia: string;
+  vigente: boolean;
+};
+
+type TecnicoMecanica = {
+  cda: string;
+  numeroCertificado: string;
+  fechaExpedicion: string;
+  fechaVigencia: string;
+  vigente: boolean;
+};
+
+type Peritaje = {
+  tienePenitaje: boolean;
+  entidadEmisora: string;
+  archivo: File | null;
+};
+
+type Seguro = {
+  entidadAseguradora: string;
+  numeroPoliza: string;
+  fechaExpedicion: string;
+  fechaInicioVigencia: string;
+  vigente: boolean;
+};
+
+type FormData = {
+  propietario: Propietario;
+  vehiculo: Vehiculo;
+  ubicacion: Ubicacion;
+  soat: Soat;
+  tecnicoMecanica: TecnicoMecanica;
+  peritaje: Peritaje;
+  seguro: Seguro;
+  aceptaTerminos: boolean;
+};
+
 export default function TokenizePage() {
   const { isConnected } = useAccount();
-  const router = useRouter();
+  //const router = useRouter();
 
   // Mock user profile data (in a real app, this would be fetched from a database)
-  const [userProfile, setUserProfile] = useState({
+  const [userProfile/*, setUserProfile*/] = useState({
     fullName: 'William Martinez',
     identificationType: 'Cedula de ciudadania',
     identificationNumber: '1234567890'
@@ -22,15 +100,12 @@ export default function TokenizePage() {
   const totalSteps = 7;
   
   // Form data state
-  const [formData, setFormData] = useState({
-    // Step 1: Owner Information (not stored in NFT metadata)
+  const [formData, setFormData] = useState<FormData>({
     propietario: {
       nombreCompleto: '',
       tipoDocumento: '',
       numeroDocumento: '',
     },
-    
-    // Step 2: Vehicle Information (stored in NFT metadata)
     vehiculo: {
       placa: '',
       fechaMatriculaInicial: '',
@@ -52,8 +127,6 @@ export default function TokenizePage() {
       declaracionImportacion: '',
       fechaImportacion: '',
     },
-    
-    // Step 3: Vehicle Location (not stored in NFT metadata)
     ubicacion: {
       estado: '',
       kilometraje: '',
@@ -61,8 +134,6 @@ export default function TokenizePage() {
       departamento: '',
       ciudad: '',
     },
-    
-    // Step 4: SOAT Information (not stored in NFT metadata)
     soat: {
       entidad: '',
       numeroPoliza: '',
@@ -70,8 +141,6 @@ export default function TokenizePage() {
       fechaInicioVigencia: '',
       vigente: false,
     },
-    
-    // Step 5: Technical Mechanical Information (not stored in NFT metadata)
     tecnicoMecanica: {
       cda: '',
       numeroCertificado: '',
@@ -79,23 +148,18 @@ export default function TokenizePage() {
       fechaVigencia: '',
       vigente: false,
     },
-    
-    // Step 6: Expert Assessment (not stored in NFT metadata)
     peritaje: {
       tienePenitaje: false,
       entidadEmisora: '',
       archivo: null,
     },
-    
-    // Step 7: Insurance Information (not stored in NFT metadata)
     seguro: {
       entidadAseguradora: '',
       numeroPoliza: '',
       fechaExpedicion: '',
       fechaInicioVigencia: '',
-      vigente: false
+      vigente: false,
     },
-    
     aceptaTerminos: false,
   });
 
@@ -142,41 +206,46 @@ export default function TokenizePage() {
     }));
   }, [userProfile]);
   
-  // Handler for form field changes
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>, section: string) => {
-    const { name, value, type, checked } = e.target as HTMLInputElement;
-    
+// Define a more specific type for the sections of FormData
+type FormDataSection = {
+  [key: string]: string | boolean | File | null;
+};
+
+// Handler for form field changes
+const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>, section: string) => {
+  const { name, value, type, checked } = e.target as HTMLInputElement;
+  
+  setFormData(prevData => ({
+    ...prevData,
+    [section]: {
+      ...prevData[section as keyof FormData] as FormDataSection,
+      [name]: type === 'checkbox' ? checked : value
+    }
+  }));
+  
+  // Clear error for this field if it exists
+  if (errors[`${section}.${name}`]) {
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[`${section}.${name}`];
+      return newErrors;
+    });
+  }
+};
+
+// Handle file uploads
+const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, section: keyof FormData, field: string) => {
+  if (e.target.files && e.target.files.length > 0) {
+    const file = e.target.files[0];
     setFormData(prevData => ({
       ...prevData,
       [section]: {
-        ...prevData[section as keyof typeof prevData] as Record<string, any>,
-        [name]: type === 'checkbox' ? checked : value
-      }
+        ...prevData[section as keyof FormData] as FormDataSection,
+        [field]: file,
+      },
     }));
-    
-    // Clear error for this field if it exists
-    if (errors[`${section}.${name}`]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[`${section}.${name}`];
-        return newErrors;
-      });
-    }
-  };
-  
-  // Handle file uploads
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, section: string, field: string) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      setFormData(prevData => ({
-        ...prevData,
-        [section]: {
-          ...prevData[section as keyof typeof prevData] as Record<string, any>,
-          [field]: file
-        }
-      }));
-    }
-  };
+  }
+};
   
   // Helper function to check if date is valid
   const isValidDate = (dateString: string) => {
@@ -1284,4 +1353,4 @@ export default function TokenizePage() {
       </div>
     </div>
   );
-} 
+}
