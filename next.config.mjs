@@ -7,6 +7,18 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'gateway.pinata.cloud',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.ipfs.nftstorage.link',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.ipfs.dweb.link',
+      },
     ],
   },
   

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useAccount, useReadContract } from 'wagmi';
 import { readContract } from '@wagmi/core';
+import { baseSepolia } from 'wagmi/chains';
+import { config } from '@/app/config/wagmi';
 
 // Define interfaces
 interface NFT {
@@ -49,7 +51,7 @@ const NFT_ABI = [
 ];
 
 // Generate mock NFT data for testing
-function getMockNFTs(address: string): NFT[] {
+function getMockNFTs(): NFT[] {
   return [
     {
       id: '1',
@@ -94,7 +96,7 @@ export function useUserNFTs() {
       // For debugging, use mock data if enabled
       if (USE_MOCK_DATA) {
         console.log('Using mock NFT data for debugging');
-        setUserNFTs(getMockNFTs(address));
+        setUserNFTs(getMockNFTs());
         setIsLoading(false);
         return;
       }
@@ -132,12 +134,13 @@ export function useUserNFTs() {
               console.warn(`Failed to fetch owner using Method 1 for token ${tokenId}:`, err);
               
               try {
-                // Method 2: Use wagmi core readContract
-                const result = await readContract({
+                // Method 2: Use wagmi core readContract with config parameter
+                const result = await readContract(config, {
                   address: CONTRACT_ADDRESS as `0x${string}`,
                   abi: NFT_ABI,
                   functionName: 'ownerOf',
                   args: [BigInt(tokenId)],
+                  chainId: baseSepolia.id,
                 });
                 ownerAddress = result as string;
                 console.log(`Token ${tokenId} owner (Method 2):`, ownerAddress);
@@ -160,12 +163,13 @@ export function useUserNFTs() {
                 console.warn(`Failed to fetch URI using Method 1 for token ${tokenId}:`, err);
                 
                 try {
-                  // Method 2: Use wagmi core readContract
-                  const result = await readContract({
+                  // Method 2: Use wagmi core readContract with config parameter
+                  const result = await readContract(config, {
                     address: CONTRACT_ADDRESS as `0x${string}`,
                     abi: NFT_ABI,
                     functionName: 'tokenURI',
                     args: [BigInt(tokenId)],
+                    chainId: baseSepolia.id,
                   });
                   uri = result as string;
                   console.log(`Token ${tokenId} URI (Method 2):`, uri);
@@ -288,13 +292,19 @@ export function useUserNFTs() {
         imageUrl = 'https://gateway.pinata.cloud/ipfs/QmZ4vLGb5KWQeqC3qJxQgjuV8GV1YBDwgdU4AJth3HVdEz';
       }
       
+      // Define a type for NFT attributes
+      interface NFTAttribute {
+        trait_type: string;
+        value: string | number;
+      }
+
       return {
         id: tokenId.toString(),
         tokenId: tokenId.toString(),
         title: metadata.name || `Car #${tokenId}`,
         image: imageUrl,
         status: 'Owned',
-        placa: metadata.placa || metadata.licensePlate || metadata.attributes?.find((attr: any) => attr.trait_type === 'Placa')?.value || ''
+        placa: metadata.placa || metadata.licensePlate || metadata.attributes?.find((attr: NFTAttribute) => attr.trait_type === 'Placa')?.value?.toString() || ''
       };
     } catch (error) {
       console.error(`Error fetching metadata for token ${tokenId}:`, error);
