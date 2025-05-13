@@ -864,9 +864,6 @@ export default function TokenizePage() {
                 )}
               </div>
             </div>
-            
-            {/* Add NFT image upload */}
-            {renderNFTImageUpload()}
           </div>
         )}
         {/* Step 3: Vehicle Location */}
@@ -1410,55 +1407,3 @@ export default function TokenizePage() {
     </div>
   );
 }
-
-// Add the NFT image upload to the form
-const renderNFTImageUpload = () => {
-  if (currentStep !== 2) return null;
-  
-  return (
-    <div className="col-span-2 mt-6 border-t pt-6 border-gray-200 dark:border-gray-700">
-      <h4 className="text-md font-semibold mb-4 text-gray-800 dark:text-white">Imagen para el NFT</h4>
-      <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">
-        Esta imagen será la representación visual de tu vehículo en el NFT. Escoge una imagen clara del vehículo.
-      </p>
-      
-      <div className="flex flex-col md:flex-row gap-4 items-start">
-        <div className="w-full md:w-1/2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Subir imagen
-          </label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleNFTImageUpload}
-            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-          />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Formatos recomendados: JPEG, PNG, o WebP. Máximo 5MB.
-          </p>
-        </div>
-        
-        <div className="w-full md:w-1/2">
-          {nftImage.preview ? (
-            <div className="mt-2">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Vista previa:</p>
-              <div className="relative h-40 w-full border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
-                <img 
-                  src={nftImage.preview} 
-                  alt="Preview" 
-                  className="h-full w-full object-contain"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="mt-2 h-40 w-full border border-gray-300 dark:border-gray-600 border-dashed rounded-md flex items-center justify-center">
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                No se ha seleccionado imagen
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
