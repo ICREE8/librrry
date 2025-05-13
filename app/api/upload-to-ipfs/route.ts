@@ -92,11 +92,12 @@ export async function POST(request: NextRequest) {
         details: (metadataError as Error).message 
       }, { status: 500 });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in IPFS upload process:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return NextResponse.json({ 
       error: 'Failed to process upload request', 
-      details: error.message 
+      details: errorMessage 
     }, { status: 500 });
   }
 }
