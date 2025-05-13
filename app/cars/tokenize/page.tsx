@@ -31,7 +31,10 @@ type FormData = {
 };
 
 export default function TokenizePage() {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
+  
+  // Check if the connected wallet is the contract owner
+  const isOwner = address?.toLowerCase() === '0x3f9b734394FC1E96afe9523c69d30D227dF4ffca'.toLowerCase();
 
   // Use the updated vehicle NFT V2 hook
   const { 
@@ -258,15 +261,23 @@ export default function TokenizePage() {
 
       // Try both minting methods (first owner method, then public method if that fails)
       try {
-        console.log("Attempting owner mint...");
-        await mintVehicleNFT({
-          tokenMetadata: { uri: metadataUri },
-        });
-      } catch (ownerMintError) {
-        console.log("Owner mint failed, attempting public mint...", ownerMintError);
-        await publicMintVehicleNFT({
-          tokenMetadata: { uri: metadataUri },
-        });
+        console.log("Connected wallet is owner:", isOwner);
+        console.log("Wallet address:", address);
+        
+        if (isOwner) {
+          console.log("Using owner minting method...");
+          await mintVehicleNFT({
+            tokenMetadata: { uri: metadataUri },
+          });
+        } else {
+          console.log("Using public minting method...");
+          await publicMintVehicleNFT({
+            tokenMetadata: { uri: metadataUri },
+          });
+        }
+      } catch (mintError) {
+        console.error("Minting failed:", mintError);
+        throw mintError;
       }
 
       setSubmitStatus('success');
@@ -290,6 +301,32 @@ export default function TokenizePage() {
           <h2 className="text-xl mb-4 text-gray-700 dark:text-gray-300">Conecta tu wallet para tokenizar tu vehículo</h2>
           <div className="flex justify-center">
             <ConnectWallet />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show owner admin panel link if the connected wallet is the contract owner
+  if (isOwner) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8 text-gray-900 dark:text-white">Wallet de Propietario Detectada</h1>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+          <div className="bg-green-100 dark:bg-green-900 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-200 px-4 py-3 rounded mb-6">
+            <p className="font-bold">¡Wallet del Contrato Detectada!</p>
+            <p>Has conectado con la wallet del propietario del contrato: {address}</p>
+          </div>
+          <p className="mb-6 text-gray-700 dark:text-gray-300">
+            Como propietario del contrato, puedes usar el panel de administración para autorizar direcciones para el minteo.
+          </p>
+          <div className="flex justify-center space-x-4">
+            <Link href="/admin/owner" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
+              Ir al Panel de Administración
+            </Link>
+            <Link href="/cars" className="px-4 py-2 bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 border border-blue-600 font-medium rounded-lg hover:bg-blue-50 dark:hover:bg-gray-600 transition-colors">
+              Volver a Mis Vehículos
+            </Link>
           </div>
         </div>
       </div>
