@@ -276,12 +276,30 @@ export default function TokenizePage() {
             tokenMetadata: { uri: metadataUri },
           });
         }
+        
+        // If we got here without an error, the transaction was successful
+        setSubmitStatus('success');
       } catch (mintError) {
         console.error("Minting failed:", mintError);
-        throw mintError;
+        
+        // Check for user rejection error message patterns across different wallets
+        const errorMessage = mintError instanceof Error ? mintError.message.toLowerCase() : '';
+        if (
+          errorMessage.includes('user rejected') || 
+          errorMessage.includes('user denied') || 
+          errorMessage.includes('user cancelled') ||
+          errorMessage.includes('user canceled') ||
+          errorMessage.includes('rejected') ||
+          errorMessage.includes('denied transaction') ||
+          errorMessage.includes('transaction was rejected')
+        ) {
+          setUploadError('Transacción cancelada: El usuario rechazó la firma de la transacción');
+        } else {
+          setUploadError(mintError instanceof Error ? mintError.message : 'Error en el proceso de minteo');
+        }
+        
+        setSubmitStatus('error');
       }
-
-      setSubmitStatus('success');
     } catch (error) {
       setSubmitStatus('error');
       console.error('Error durante la tokenización:', error);
