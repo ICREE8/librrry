@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ConnectWallet } from '@coinbase/onchainkit/wallet';
 import { useVehicleNFTV2 } from '@/app/hooks/useVehicleNFTV2';
 import Image from 'next/image';
+import ImageGuidelines from './ImageGuidelines';
 
 // Define types for formData
 type VehicleBasicInfo = {
@@ -618,6 +619,8 @@ export default function TokenizePage() {
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 Sube una imagen que represente tu vehículo. Esta imagen será visible en la plataforma y marketplace.
               </p>
+              
+              <ImageGuidelines />
               
               <div className="flex flex-col items-center justify-center">
                 {formData.nftSettings.imagePreview ? (
