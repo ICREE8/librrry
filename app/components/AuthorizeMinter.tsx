@@ -7,7 +7,6 @@ export default function AuthorizeMinter() {
   const [minterAddress, setMinterAddress] = useState<string>('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [txHash, setTxHash] = useState<string | null>(null);
   
   const { authorizeMinter, transactionUrl } = useVehicleNFTV2();
   
