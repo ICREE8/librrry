@@ -18,12 +18,6 @@ type MintParams = {
   tokenMetadata: TokenMetadata;
 };
 
-// Define the transaction result type
-type TransactionResult = {
-  hash: `0x${string}`;
-  [key: string]: any;
-};
-
 const VehicleNFT = {
   abi: [
     {

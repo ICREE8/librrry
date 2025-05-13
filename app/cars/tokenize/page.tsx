@@ -92,9 +92,6 @@ export default function TokenizePage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   
-  // Add state for transaction hash
-  const [transactionHash, setTransactionHash] = useState<string | null>(null);
-
   // Mock user profile data (in a real app, this would be fetched from a database)
   const [userProfile] = useState({
     fullName: 'William Martinez',
@@ -349,7 +346,6 @@ export default function TokenizePage() {
         tokenMetadata: { uri: metadataUri },
       });
 
-      // For this simplified version, we won't try to get the transaction hash
       setSubmitStatus('success');
     } catch (error) {
       setSubmitStatus('error');
