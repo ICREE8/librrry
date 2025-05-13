@@ -1,23 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import { ConnectWallet } from '@coinbase/onchainkit/wallet';
 import NFTImageCard from '@/app/components/NFTImageCard';
 import { useUserNFTs } from '@/app/hooks/useUserNFTs';
-
-// Define a proper interface for car objects
-interface Car {
-  id: string;
-  title: string;
-  image: string;
-  status: string;
-  tokenId: string;
-  placa: string;
-  price?: string;
-}
 
 export default function CarsPage() {
   const router = useRouter();
