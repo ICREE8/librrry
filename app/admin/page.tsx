@@ -5,7 +5,6 @@ import { useAccount } from 'wagmi';
 import { ConnectWallet } from '@coinbase/onchainkit/wallet';
 import Link from 'next/link';
 import { useVehicleNFTV2 } from '../hooks/useVehicleNFTV2';
-import AuthorizeMinter from '../components/AuthorizeMinter';
 
 export default function AdminPage() {
   const { address, isConnected } = useAccount();
