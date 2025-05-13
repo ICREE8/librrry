@@ -6,12 +6,10 @@ type VehicleAttributes = {
   brand: string;
   model: string;
   year: number;
-  // Add other vehicle properties as needed
 };
 
 type TokenMetadata = {
   uri: string;
-  // Add other metadata properties as needed
 };
 
 // Define a type for the mint function parameters
@@ -59,18 +57,17 @@ export function useVehicleNFT() {
 
   const isLoading = status === 'pending';
 
-  const mintVehicleNFT = async ({ vehicleData, tokenMetadata }: MintParams): Promise<TransactionResult | undefined> => {
+  const mintVehicleNFT = async (params: MintParams) => {
     try {
-      const txResult = await writeContract({
+      // Simply return the result without any type assertions
+      return writeContract({
         ...contractConfig,
         functionName: 'mintVehicleNFT',
-        args: [vehicleData, tokenMetadata.uri]
+        args: [params.vehicleData, params.tokenMetadata.uri]
       });
-      
-      return txResult as TransactionResult;
     } catch (err) {
       console.error('Error minting NFT:', err);
-      throw err; // Re-throw to allow handling in the UI
+      throw err;
     }
   };
 
