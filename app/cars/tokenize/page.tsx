@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import Link from 'next/link';
 import { ConnectWallet } from '@coinbase/onchainkit/wallet';
 import { useVehicleNFT } from '../../hooks/useContracts';
@@ -71,6 +71,11 @@ type Seguro = {
   fechaExpedicion: string;
   fechaInicioVigencia: string;
   vigente: boolean;
+};
+
+type NFTImage = {
+  file: File | null;
+  preview: string | null;
 };
 
 type FormData = {
@@ -166,6 +171,16 @@ export default function TokenizePage() {
       vigente: false,
     },
     aceptaTerminos: false,
+  });
+
+  // Add state for NFT image and transaction hash
+  const [nftImage, setNftImage] = useState<NFTImage>({ file: null, preview: null });
+  const [transactionHash, setTransactionHash] = useState<string | null>(null);
+  
+  // Add hook to track transaction receipt
+  const { data: transactionReceipt } = useWaitForTransactionReceipt({
+    hash: transactionHash as `0x${string}` | undefined,
+    enabled: !!transactionHash,
   });
 
   // Selection options (unchanged)
@@ -295,6 +310,27 @@ export default function TokenizePage() {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
+  // Add handler for NFT image upload
+  const handleNFTImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const objectUrl = URL.createObjectURL(file);
+      setNftImage({
+        file,
+        preview: objectUrl,
+      });
+    }
+  };
+
+  // Clean up preview URL on unmount
+  useEffect(() => {
+    return () => {
+      if (nftImage.preview) {
+        URL.revokeObjectURL(nftImage.preview);
+      }
+    };
+  }, [nftImage.preview]);
+
   // Form submission handler
   const onFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -320,6 +356,7 @@ export default function TokenizePage() {
     setSubmitStatus('processing');
     setIsUploading(true);
     setUploadError(null);
+    setTransactionHash(null);
 
     try {
       // Step 1: Prepare metadata JSON
@@ -339,9 +376,14 @@ export default function TokenizePage() {
 
       // Step 2: Upload to IPFS via API route
       const uploadFormData = new FormData();
-      if (formData.peritaje.tienePenitaje && formData.peritaje.archivo) {
+      
+      // Use the dedicated NFT image if available, otherwise use peritaje image
+      if (nftImage.file) {
+        uploadFormData.append('image', nftImage.file);
+      } else if (formData.peritaje.tienePenitaje && formData.peritaje.archivo) {
         uploadFormData.append('image', formData.peritaje.archivo);
       }
+      
       uploadFormData.append('metadata', JSON.stringify(metadata));
       uploadFormData.append('placa', formData.vehiculo.placa);
 
@@ -373,10 +415,15 @@ export default function TokenizePage() {
       };
 
       // Step 4: Mint the NFT
-      await mintVehicleNFT({
+      const mintResult = await mintVehicleNFT({
         vehicleData: vehicleDataToMint,
         tokenMetadata: { uri: metadataUri },
       });
+      
+      // Store transaction hash if available from the mint result
+      if (mintResult && typeof mintResult === 'object' && 'hash' in mintResult) {
+        setTransactionHash(mintResult.hash as string);
+      }
 
       setSubmitStatus('success');
     } catch (error) {
@@ -407,6 +454,10 @@ export default function TokenizePage() {
 
   // If submission was successful
   if (submitStatus === 'success') {
+    // Determine which blockchain explorer to use based on network
+    const explorerBaseUrl = "https://sepolia.etherscan.io/tx/"; // Default to Sepolia testnet
+    const explorerUrl = transactionHash ? `${explorerBaseUrl}${transactionHash}` : null;
+    
     return (
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center mb-6">
@@ -418,8 +469,28 @@ export default function TokenizePage() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8">
           <div className="bg-green-100 dark:bg-green-900 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-200 px-4 py-3 rounded mb-6">
             <p className="font-bold">¡Tokenización Exitosa!</p>
-            <p>Tu vehículo ha sido tokenized. Ahora puedes verlo en tu colección.</p>
+            <p>Tu vehículo ha sido tokenizado. Ahora puedes verlo en tu colección.</p>
           </div>
+          
+          {transactionHash && (
+            <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 text-blue-800 dark:text-blue-200 px-4 py-3 rounded mb-6">
+              <p className="font-medium">Detalles de la transacción:</p>
+              <p className="text-sm break-all mt-1">
+                Hash: {transactionHash}
+              </p>
+              <p className="mt-2">
+                <a 
+                  href={explorerUrl || '#'} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline font-medium"
+                >
+                  Ver en el explorador de blockchain →
+                </a>
+              </p>
+            </div>
+          )}
+          
           <div className="flex justify-center">
             <Link href="/cars" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
               Ver Mis Vehículos
@@ -891,6 +962,9 @@ export default function TokenizePage() {
                 )}
               </div>
             </div>
+            
+            {/* Add NFT image upload */}
+            {renderNFTImageUpload()}
           </div>
         )}
         {/* Step 3: Vehicle Location */}
@@ -1434,3 +1508,55 @@ export default function TokenizePage() {
     </div>
   );
 }
+
+// Add the NFT image upload to the form
+const renderNFTImageUpload = () => {
+  if (currentStep !== 2) return null;
+  
+  return (
+    <div className="col-span-2 mt-6 border-t pt-6 border-gray-200 dark:border-gray-700">
+      <h4 className="text-md font-semibold mb-4 text-gray-800 dark:text-white">Imagen para el NFT</h4>
+      <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">
+        Esta imagen será la representación visual de tu vehículo en el NFT. Escoge una imagen clara del vehículo.
+      </p>
+      
+      <div className="flex flex-col md:flex-row gap-4 items-start">
+        <div className="w-full md:w-1/2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Subir imagen
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleNFTImageUpload}
+            className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Formatos recomendados: JPEG, PNG, o WebP. Máximo 5MB.
+          </p>
+        </div>
+        
+        <div className="w-full md:w-1/2">
+          {nftImage.preview ? (
+            <div className="mt-2">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Vista previa:</p>
+              <div className="relative h-40 w-full border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
+                <img 
+                  src={nftImage.preview} 
+                  alt="Preview" 
+                  className="h-full w-full object-contain"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2 h-40 w-full border border-gray-300 dark:border-gray-600 border-dashed rounded-md flex items-center justify-center">
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                No se ha seleccionado imagen
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
