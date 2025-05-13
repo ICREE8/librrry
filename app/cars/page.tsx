@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import { ConnectWallet } from '@coinbase/onchainkit/wallet';
 import NFTImageCard from '@/app/components/NFTImageCard';
+import { useUserNFTs } from '@/app/hooks/useUserNFTs';
 
 // Define a proper interface for car objects
 interface Car {
@@ -21,58 +22,7 @@ interface Car {
 export default function CarsPage() {
   const router = useRouter();
   const { isConnected } = useAccount();
-  const [cars, setCars] = useState<Car[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Fetch user's cars
-  useEffect(() => {
-    const fetchCars = async () => {
-      if (!isConnected) return;
-      
-      setIsLoading(true);
-      try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Mock car data with both regular URLs and IPFS URIs
-        const mockCars: Car[] = [
-          {
-            id: '1',
-            title: 'Toyota Corolla 2022',
-            image: 'https://images.unsplash.com/photo-1638618164682-12b986ec2a75?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-            status: 'Tokenized',
-            tokenId: '1',
-            placa: 'ABC123',
-          },
-          {
-            id: '2',
-            title: 'Chevrolet Camaro 2020',
-            image: 'ipfs://QmZ4vLGb5KWQeqC3qJxQgjuV8GV1YBDwgdU4AJth3HVdEz',
-            status: 'Listed for Sale',
-            tokenId: '2',
-            placa: 'XYZ789',
-            price: '2.8',
-          },
-          {
-            id: '3',
-            title: 'Honda Civic 2021',
-            image: 'ipfs://QmZ4vLGb5KWQeqC3qJxQgjuV8GV1YBDwgdU4AJth3HVdEz',
-            status: 'Tokenized',
-            tokenId: '3',
-            placa: 'DEF456',
-          },
-        ];
-        
-        setCars(mockCars);
-      } catch (error) {
-        console.error('Error fetching cars:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchCars();
-  }, [isConnected]);
+  const { userNFTs, isLoading, error } = useUserNFTs();
   
   const handleCardClick = (id: string) => {
     router.push(`/cars/${id}`);
@@ -116,7 +66,12 @@ export default function CarsPage() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 flex justify-center items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
-      ) : cars.length === 0 ? (
+      ) : error ? (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+          <h3 className="text-lg text-red-500 mb-4">Error loading NFTs</h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">{error}</p>
+        </div>
+      ) : userNFTs.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
           <h3 className="text-lg text-gray-600 dark:text-gray-400 mb-4">You don&apos;t have any cars yet</h3>
           <p className="text-gray-500 dark:text-gray-500 mb-6">
@@ -131,7 +86,7 @@ export default function CarsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {cars.map(car => (
+          {userNFTs.map(car => (
             <NFTImageCard
               key={car.id}
               imageUri={car.image}
