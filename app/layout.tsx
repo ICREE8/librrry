@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from './providers';
 import Navbar from './components/Navbar';
+import { ClientComponents } from './components/ClientComponents';
 
 export const metadata: Metadata = {
   title: 'CarP2P - Tokenize and Trade Vehicles',
@@ -25,6 +26,7 @@ export default function RootLayout({
           <main className="container mx-auto px-4 py-8">
             {children}
           </main>
+          <ClientComponents />
         </Providers>
       </body>
     </html>
