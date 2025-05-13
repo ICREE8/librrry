@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import Link from 'next/link';
 import { ConnectWallet } from '@coinbase/onchainkit/wallet';
-import { useVehicleNFT } from '@/app/hooks/useContracts';
+import { useVehicleNFTV2 } from '@/app/hooks/useVehicleNFTV2';
 import Image from 'next/image';
 
 // Define types for formData
@@ -33,14 +33,15 @@ type FormData = {
 export default function TokenizePage() {
   const { isConnected } = useAccount();
 
-  // Use the vehicle NFT hook
+  // Use the updated vehicle NFT V2 hook
   const { 
-    mintVehicleNFT, 
+    mintVehicleNFT,
+    publicMintVehicleNFT, 
     isLoading: isMinting, 
     error: mintError, 
     transactionHash,
     transactionUrl
-  } = useVehicleNFT();
+  } = useVehicleNFTV2();
   
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -255,10 +256,18 @@ export default function TokenizePage() {
         console.warn('IPFS Upload Warning:', warning);
       }
 
-      // Step 3: Mint the NFT
-      await mintVehicleNFT({
-        tokenMetadata: { uri: metadataUri },
-      });
+      // Try both minting methods (first owner method, then public method if that fails)
+      try {
+        console.log("Attempting owner mint...");
+        await mintVehicleNFT({
+          tokenMetadata: { uri: metadataUri },
+        });
+      } catch (ownerMintError) {
+        console.log("Owner mint failed, attempting public mint...", ownerMintError);
+        await publicMintVehicleNFT({
+          tokenMetadata: { uri: metadataUri },
+        });
+      }
 
       setSubmitStatus('success');
     } catch (error) {
