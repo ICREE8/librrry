@@ -87,16 +87,10 @@ type FormData = {
 export default function TokenizePage() {
   const { address, isConnected } = useAccount();
 
-  // Use the useVehicleNFT hook
-  const vehicleData = {
-    brand: '', // Will be set dynamically
-    model: '',
-    year: 0,
-  };
-  const tokenMetadata = {
-    uri: '', // Will be set after IPFS upload
-  };
-  const { mintVehicleNFT, isLoading, isSuccess, error } = useVehicleNFT(vehicleData, tokenMetadata);
+  // Use the updated useVehicleNFT hook
+  const { mintVehicleNFT, isLoading: isMinting, isSuccess, error: mintError } = useVehicleNFT();
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Mock user profile data (in a real app, this would be fetched from a database)
   const [userProfile] = useState({
@@ -324,6 +318,8 @@ export default function TokenizePage() {
     }
 
     setSubmitStatus('processing');
+    setIsUploading(true);
+    setUploadError(null);
 
     try {
       // Step 1: Prepare metadata JSON
@@ -354,11 +350,20 @@ export default function TokenizePage() {
         body: uploadFormData,
       });
 
+      setIsUploading(false);
+
       if (!response.ok) {
-        throw new Error('Failed to upload to IPFS');
+        const errorData = await response.json();
+        setUploadError(errorData.error || 'Failed to upload to IPFS');
+        setSubmitStatus('error');
+        return;
       }
 
-      const { metadataUri } = await response.json();
+      const { metadataUri, warning } = await response.json();
+      
+      if (warning) {
+        console.warn('IPFS Upload Warning:', warning);
+      }
 
       // Step 3: Prepare vehicle data for the contract
       const vehicleDataToMint = {
@@ -377,6 +382,11 @@ export default function TokenizePage() {
     } catch (error) {
       setSubmitStatus('error');
       console.error('Error during tokenization:', error);
+      if (error instanceof Error) {
+        setUploadError(error.message);
+      } else {
+        setUploadError('An unknown error occurred');
+      }
     }
   };
 
@@ -413,6 +423,37 @@ export default function TokenizePage() {
           <div className="flex justify-center">
             <Link href="/cars" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
               Ver Mis Vehículos
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error message if submission failed
+  if (submitStatus === 'error') {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center mb-6">
+          <Link href="/cars" className="mr-4 text-blue-600 dark:text-blue-400 hover:underline">
+            ← Volver a Mis Vehículos
+          </Link>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tokenizar Tu Vehículo</h1>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8">
+          <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded mb-6">
+            <p className="font-bold">Error durante la tokenización</p>
+            <p>{uploadError || mintError?.message || 'Ocurrió un error inesperado durante el proceso de tokenización.'}</p>
+          </div>
+          <div className="flex justify-center space-x-4">
+            <button 
+              onClick={() => setSubmitStatus(null)} 
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+            >
+              Intentar Nuevamente
+            </button>
+            <Link href="/cars" className="px-4 py-2 bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 border border-blue-600 font-medium rounded-lg hover:bg-blue-50 dark:hover:bg-gray-600 transition-colors">
+              Cancelar
             </Link>
           </div>
         </div>
@@ -1348,45 +1389,48 @@ export default function TokenizePage() {
             </div>
           </div>
         )}
-        {/* Navigation buttons */}
+        {/* Submit button at bottom of form */}
         <div className="flex justify-between mt-8">
-          {currentStep > 1 ? (
+          {currentStep > 1 && (
             <button
               type="button"
               onClick={prevStep}
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-medium rounded-lg transition-colors"
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
             >
               Anterior
             </button>
-          ) : (
-            <div></div>
           )}
           {currentStep < totalSteps ? (
             <button
               type="button"
               onClick={nextStep}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+              className={`px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors ${
+                currentStep === 1 && 'ml-auto'
+              }`}
             >
               Siguiente
             </button>
           ) : (
             <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitStatus === 'processing' || isLoading}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:bg-gray-400"
+              type="submit"
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors flex items-center"
+              disabled={isUploading || isMinting}
             >
-              {submitStatus === 'processing' || isLoading ? 'Procesando...' : 'Tokenizar Vehículo'}
+              {(isUploading || isMinting) ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {isUploading ? 'Subiendo a IPFS...' : 'Tokenizando...'}
+                </>
+              ) : (
+                'Tokenizar Vehículo'
+              )}
             </button>
           )}
         </div>
       </div>
-      {submitStatus === 'error' && (
-        <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded mt-4">
-          <p className="font-bold">Error al tokenizar</p>
-          <p>{error?.message || 'Ocurrió un error al tokenizar el vehículo. Por favor, intenta de nuevo.'}</p>
-        </div>
-      )}
     </div>
   );
 }

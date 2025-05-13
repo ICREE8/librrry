@@ -14,6 +14,12 @@ type TokenMetadata = {
   // Add other metadata properties as needed
 };
 
+// Define a type for the mint function parameters
+type MintParams = {
+  vehicleData: VehicleAttributes;
+  tokenMetadata: TokenMetadata;
+};
+
 const VehicleNFT = {
   abi: [
     {
@@ -37,7 +43,7 @@ const VehicleNFT = {
   sourceName: '...',
 };
 
-export function useVehicleNFT(vehicleData: VehicleAttributes, tokenMetadata: TokenMetadata) {
+export function useVehicleNFT() {
   const contractConfig = {
     address: addresses.VehicleNFT as `0x${string}`,
     abi: VehicleNFT.abi,
@@ -47,7 +53,7 @@ export function useVehicleNFT(vehicleData: VehicleAttributes, tokenMetadata: Tok
 
   const isLoading = status === 'pending';
 
-  const mintVehicleNFT = async () => {
+  const mintVehicleNFT = async ({ vehicleData, tokenMetadata }: MintParams) => {
     try {
       await writeContract({
         ...contractConfig,
