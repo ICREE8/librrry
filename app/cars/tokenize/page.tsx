@@ -85,10 +85,11 @@ type FormData = {
 };
 
 export default function TokenizePage() {
-  const { address, isConnected } = useAccount();
+  // Use only what we need from useAccount
+  const { isConnected } = useAccount();
 
   // Use the updated useVehicleNFT hook
-  const { mintVehicleNFT, isLoading: isMinting, isSuccess, error: mintError } = useVehicleNFT();
+  const { mintVehicleNFT, isLoading: isMinting, error: mintError } = useVehicleNFT();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -193,7 +194,6 @@ export default function TokenizePage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
-  const [tokenId, setTokenId] = useState<string | null>(null);
 
   // Effect to populate owner information
   useEffect(() => {
@@ -295,8 +295,8 @@ export default function TokenizePage() {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
-  // Handle form submission with API route for IPFS upload and NFT minting
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Form submission handler
+  const onFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validate owner identity match
@@ -494,7 +494,7 @@ export default function TokenizePage() {
           ></div>
         </div>
       </div>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+      <form onSubmit={onFormSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
         <p className="text-gray-700 dark:text-gray-300 font-medium mb-4">
           Para este proceso es importante que tenga la tarjeta de propiedad del vehículo a la mano.
         </p>
@@ -1430,7 +1430,7 @@ export default function TokenizePage() {
             </button>
           )}
         </div>
-      </div>
+      </form>
     </div>
   );
 }
