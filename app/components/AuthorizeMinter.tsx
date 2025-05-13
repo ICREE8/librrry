@@ -23,8 +23,14 @@ export default function AuthorizeMinter() {
       setStatus('loading');
       setErrorMessage('');
       
+      console.log('Authorizing minter:', {
+        minterAddress,
+        contractAddress: '0x1C4cc777E309c6403Ce82e2332887470773A8a74'
+      });
+      
       await authorizeMinter(minterAddress as `0x${string}`);
       setStatus('success');
+      console.log('Authorization successful!');
     } catch (error) {
       console.error('Error authorizing minter:', error);
       setStatus('error');

@@ -75,6 +75,12 @@ export function useVehicleNFTV2() {
     if (!address) throw new Error('Wallet not connected');
     
     try {
+      console.log('Minting with:', {
+        contractAddress: CONTRACT_ADDRESS,
+        walletAddress: address,
+        tokenURI: params.tokenMetadata.uri
+      });
+      
       return writeContract({
         ...contractConfig,
         functionName: 'publicMintVehicleNFT',
