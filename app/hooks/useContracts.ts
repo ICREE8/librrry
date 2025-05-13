@@ -1,44 +1,37 @@
-import { useWriteContract } from 'wagmi';
+import { useWriteContract, useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import addresses from '../src/contracts/addresses.json';
-
-// Define proper types for the function arguments
-type VehicleAttributes = {
-  brand: string;
-  model: string;
-  year: number;
-};
-
-type TokenMetadata = {
-  uri: string;
-};
 
 // Define a type for the mint function parameters
 type MintParams = {
-  vehicleData: VehicleAttributes;
-  tokenMetadata: TokenMetadata;
+  tokenMetadata: {
+    uri: string;
+  };
 };
 
 const VehicleNFT = {
   abi: [
     {
       inputs: [
-        { name: 'vehicleData', type: 'tuple', components: [
-          { name: 'brand', type: 'string' },
-          { name: 'model', type: 'string' },
-          { name: 'year', type: 'uint256' }
-          // Add other components that match your contract
-        ]},
+        { name: 'to', type: 'address' },
         { name: 'tokenURI', type: 'string' }
       ],
       name: 'mintVehicleNFT',
-      outputs: [],
+      outputs: [{ name: '', type: 'uint256' }],
       stateMutability: 'nonpayable',
       type: 'function',
     },
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: true, name: 'to', type: 'address' },
+        { indexed: false, name: 'tokenId', type: 'uint256' },
+        { indexed: false, name: 'tokenURI', type: 'string' }
+      ],
+      name: 'VehicleNFTMinted',
+      type: 'event',
+    },
   ],
-  _format: '...',
   contractName: 'VehicleNFT',
-  sourceName: '...',
 };
 
 export function useVehicleNFT() {
@@ -47,17 +40,23 @@ export function useVehicleNFT() {
     abi: VehicleNFT.abi,
   };
 
-  const { writeContract, isSuccess, error, status } = useWriteContract();
+  const { address } = useAccount();
+  const { writeContract, data: hash, isPending, error } = useWriteContract();
+  
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+    hash,
+  });
 
-  const isLoading = status === 'pending';
+  const isLoading = isPending || isConfirming;
 
   const mintVehicleNFT = async (params: MintParams) => {
+    if (!address) throw new Error('Wallet not connected');
+    
     try {
-      // Simply return the result without any type assertions
       return writeContract({
         ...contractConfig,
         functionName: 'mintVehicleNFT',
-        args: [params.vehicleData, params.tokenMetadata.uri]
+        args: [address, params.tokenMetadata.uri]
       });
     } catch (err) {
       console.error('Error minting NFT:', err);
@@ -65,5 +64,19 @@ export function useVehicleNFT() {
     }
   };
 
-  return { mintVehicleNFT, isLoading, isSuccess, error };
-}
+  // Get the transaction URL based on network
+  const getTransactionUrl = () => {
+    if (!hash) return null;
+    // We're using Base network
+    return `https://basescan.org/tx/${hash}`;
+  };
+
+  return { 
+    mintVehicleNFT, 
+    isLoading, 
+    isSuccess, 
+    error,
+    transactionHash: hash,
+    transactionUrl: getTransactionUrl()
+  };
+} 

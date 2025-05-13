@@ -1,225 +1,105 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import Link from 'next/link';
 import { ConnectWallet } from '@coinbase/onchainkit/wallet';
-import { useVehicleNFT } from '../../hooks/useContracts';
+import { useVehicleNFT } from '@/app/hooks/useContracts';
+import Image from 'next/image';
 
 // Define types for formData
-type Propietario = {
-  nombreCompleto: string;
-  tipoDocumento: string;
-  numeroDocumento: string;
-};
-
-type Vehiculo = {
+type VehicleBasicInfo = {
   placa: string;
-  fechaMatriculaInicial: string;
   marca: string;
   linea: string;
   modelo: string;
-  cilindraje: string;
   color: string;
-  servicio: string;
-  claseVehiculo: string;
-  tipoCarroceria: string;
-  combustible: string;
-  capacidad: string;
-  numeroMotor: string;
   vin: string;
-  numeroSerie: string;
-  numeroChasis: string;
-  blindaje: string;
-  declaracionImportacion: string;
-  fechaImportacion: string;
 };
 
-type Ubicacion = {
-  estado: string;
-  kilometraje: string;
-  contactoCelular: string;
-  departamento: string;
-  ciudad: string;
-};
-
-type Soat = {
-  entidad: string;
-  numeroPoliza: string;
-  fechaExpedicion: string;
-  fechaInicioVigencia: string;
-  vigente: boolean;
-};
-
-type TecnicoMecanica = {
-  cda: string;
-  numeroCertificado: string;
-  fechaExpedicion: string;
-  fechaVigencia: string;
-  vigente: boolean;
-};
-
-type Peritaje = {
-  tienePenitaje: boolean;
-  entidadEmisora: string;
-  archivo: File | null;
-};
-
-type Seguro = {
-  entidadAseguradora: string;
-  numeroPoliza: string;
-  fechaExpedicion: string;
-  fechaInicioVigencia: string;
-  vigente: boolean;
+type NFTSettings = {
+  price: string;
+  paymentToken: string;
+  image: File | null;
+  imagePreview: string | null;
 };
 
 type FormData = {
-  propietario: Propietario;
-  vehiculo: Vehiculo;
-  ubicacion: Ubicacion;
-  soat: Soat;
-  tecnicoMecanica: TecnicoMecanica;
-  peritaje: Peritaje;
-  seguro: Seguro;
+  vehicleInfo: VehicleBasicInfo;
+  nftSettings: NFTSettings;
   aceptaTerminos: boolean;
 };
 
 export default function TokenizePage() {
   const { isConnected } = useAccount();
 
-  // Use the updated useVehicleNFT hook
-  const { mintVehicleNFT, isLoading: isMinting, error: mintError } = useVehicleNFT();
+  // Use the vehicle NFT hook
+  const { 
+    mintVehicleNFT, 
+    isLoading: isMinting, 
+    error: mintError, 
+    transactionHash,
+    transactionUrl
+  } = useVehicleNFT();
+  
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   
-  // Mock user profile data (in a real app, this would be fetched from a database)
-  const [userProfile] = useState({
-    fullName: 'William Martinez',
-    identificationType: 'Cedula de ciudadania',
-    identificationNumber: '1234567890',
-  });
-
-  // Step tracking for multi-step form
+  // Step tracking for two-step form
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 7;
+  const totalSteps = 2;
+
+  // Available payment tokens
+  const paymentTokens = [
+    { name: 'ETH', label: 'Ethereum (ETH)' },
+    { name: 'USDC', label: 'USD Coin (USDC)' },
+    { name: 'USDT', label: 'Tether (USDT)' }
+  ];
+
+  // Available car brands
+  const carBrands = [
+    'Toyota', 'Honda', 'Ford', 'Chevrolet', 'Nissan', 
+    'BMW', 'Mercedes-Benz', 'Audi', 'Volkswagen', 'Hyundai', 
+    'Kia', 'Mazda', 'Subaru', 'Lexus', 'Jeep', 'Tesla'
+  ];
 
   // Form data state
   const [formData, setFormData] = useState<FormData>({
-    propietario: {
-      nombreCompleto: '',
-      tipoDocumento: '',
-      numeroDocumento: '',
-    },
-    vehiculo: {
+    vehicleInfo: {
       placa: '',
-      fechaMatriculaInicial: '',
       marca: '',
       linea: '',
       modelo: '',
-      cilindraje: '',
       color: '',
-      servicio: '',
-      claseVehiculo: '',
-      tipoCarroceria: '',
-      combustible: '',
-      capacidad: '',
-      numeroMotor: '',
       vin: '',
-      numeroSerie: '',
-      numeroChasis: '',
-      blindaje: '',
-      declaracionImportacion: '',
-      fechaImportacion: '',
     },
-    ubicacion: {
-      estado: '',
-      kilometraje: '',
-      contactoCelular: '',
-      departamento: '',
-      ciudad: '',
-    },
-    soat: {
-      entidad: '',
-      numeroPoliza: '',
-      fechaExpedicion: '',
-      fechaInicioVigencia: '',
-      vigente: false,
-    },
-    tecnicoMecanica: {
-      cda: '',
-      numeroCertificado: '',
-      fechaExpedicion: '',
-      fechaVigencia: '',
-      vigente: false,
-    },
-    peritaje: {
-      tienePenitaje: false,
-      entidadEmisora: '',
-      archivo: null,
-    },
-    seguro: {
-      entidadAseguradora: '',
-      numeroPoliza: '',
-      fechaExpedicion: '',
-      fechaInicioVigencia: '',
-      vigente: false,
+    nftSettings: {
+      price: '',
+      paymentToken: 'ETH',
+      image: null,
+      imagePreview: null,
     },
     aceptaTerminos: false,
   });
 
-  // Selection options
-  const tiposDocumento = ['Cedula de ciudadania', 'Cedula extranjeria', 'NIT'];
-  const tiposServicio = ['Particular', 'Público'];
-  const clasesVehiculo = ['Carro', 'Motocicleta', 'Camioneta'];
-  const tiposCarroceria = ['SIN CARROCERIA', 'CON CARROCERIA'];
-  const tiposCombustible = ['Gasolina', 'Diesel', 'Eléctrico', 'Híbrido', 'Gas'];
-  const opcionesSiNo = ['Si', 'No'];
-  const estadosVehiculo = ['Nuevo', 'Usado'];
-
-  const departamentos = [
-    'Amazonas', 'Antioquia', 'Arauca', 'Atlántico', 'Bogotá D.C.', 'Bolívar',
-    // ... other departments ...
-  ];
-
-  const marcasPorTipo = {
-    Carro: ['Toyota', 'Chevrolet', 'Mazda', 'Renault', 'Ford', 'Nissan', 'Kia', 'Hyundai'],
-    Motocicleta: ['Yamaha', 'Honda', 'Suzuki', 'Kawasaki', 'Bajaj', 'KTM', 'Royal Enfield'],
-    Camioneta: ['Toyota', 'Ford', 'Chevrolet', 'Nissan', 'Mitsubishi', 'Jeep', 'Kia', 'Hyundai'],
-  };
-
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
-
-  // Effect to populate owner information
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      propietario: {
-        nombreCompleto: userProfile.fullName,
-        tipoDocumento: userProfile.identificationType,
-        numeroDocumento: userProfile.identificationNumber,
-      },
-    }));
-  }, [userProfile]);
-
-  // Define a more specific type for the sections of FormData
-  type FormDataSection = {
-    [key: string]: string | boolean | File | null;
-  };
 
   // Handler for form field changes
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
-    section: string
+    section: 'vehicleInfo' | 'nftSettings'
   ) => {
     const { name, value, type, checked } = e.target as HTMLInputElement;
+    
     setFormData((prevData) => ({
       ...prevData,
       [section]: {
-        ...prevData[section as keyof FormData] as FormDataSection,
+        ...prevData[section],
         [name]: type === 'checkbox' ? checked : value,
       },
     }));
+    
     if (errors[`${section}.${name}`]) {
       setErrors((prev) => {
         const newErrors = { ...prev };
@@ -229,34 +109,73 @@ export default function TokenizePage() {
     }
   };
 
-  // Handle file uploads
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, section: keyof FormData, field: string) => {
+  // Handle image upload
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
+      
       setFormData((prevData) => ({
         ...prevData,
-        [section]: {
-          ...prevData[section as keyof FormData] as FormDataSection,
-          [field]: file,
+        nftSettings: {
+          ...prevData.nftSettings,
+          image: file,
+          imagePreview: URL.createObjectURL(file),
         },
       }));
+      
+      if (errors['nftSettings.image']) {
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors['nftSettings.image'];
+          return newErrors;
+        });
+      }
     }
-  };
-
-  // Helper function to check if date is valid
-  const isValidDate = (dateString: string) => {
-    if (!dateString) return false;
-    const regex = /^\d{2}\/\d{2}\/\d{4}$/;
-    if (!regex.test(dateString)) return false;
-    const [day, month, year] = dateString.split('/').map(Number);
-    const date = new Date(year, month - 1, day);
-    return date.getDate() === day && date.getMonth() === month - 1 && date.getFullYear() === year;
   };
 
   // Validate form data for current step
   const validateCurrentStep = () => {
     const newErrors: Record<string, string> = {};
-    // ... validation logic ...
+    
+    if (currentStep === 1) {
+      // Validate vehicle info fields
+      if (!formData.vehicleInfo.placa) {
+        newErrors['vehicleInfo.placa'] = 'La placa es requerida';
+      }
+      if (!formData.vehicleInfo.marca) {
+        newErrors['vehicleInfo.marca'] = 'La marca es requerida';
+      }
+      if (!formData.vehicleInfo.linea) {
+        newErrors['vehicleInfo.linea'] = 'La línea es requerida';
+      }
+      if (!formData.vehicleInfo.modelo) {
+        newErrors['vehicleInfo.modelo'] = 'El modelo es requerido';
+      }
+      if (!formData.vehicleInfo.color) {
+        newErrors['vehicleInfo.color'] = 'El color es requerido';
+      }
+      if (!formData.vehicleInfo.vin) {
+        newErrors['vehicleInfo.vin'] = 'El VIN es requerido';
+      } else if (formData.vehicleInfo.vin.length !== 17) {
+        newErrors['vehicleInfo.vin'] = 'El VIN debe tener exactamente 17 caracteres';
+      }
+    } else if (currentStep === 2) {
+      // Validate NFT settings
+      if (!formData.nftSettings.price) {
+        newErrors['nftSettings.price'] = 'El precio es requerido';
+      } else if (isNaN(parseFloat(formData.nftSettings.price)) || parseFloat(formData.nftSettings.price) <= 0) {
+        newErrors['nftSettings.price'] = 'El precio debe ser un número positivo';
+      }
+      
+      if (!formData.nftSettings.paymentToken) {
+        newErrors['nftSettings.paymentToken'] = 'Debes seleccionar un token de pago';
+      }
+      
+      if (formData.aceptaTerminos === false) {
+        newErrors['aceptaTerminos'] = 'Debes aceptar los términos y condiciones';
+      }
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -277,11 +196,8 @@ export default function TokenizePage() {
   const onFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Basic validation
-    if (!formData.aceptaTerminos) {
-      setErrors({
-        aceptaTerminos: 'Debes aceptar los términos y condiciones',
-      });
+    // Validate all fields
+    if (!validateCurrentStep()) {
       return;
     }
 
@@ -292,26 +208,32 @@ export default function TokenizePage() {
     try {
       // Step 1: Prepare metadata JSON
       const metadata = {
-        name: `${formData.vehiculo.marca} ${formData.vehiculo.linea}`,
-        description: `A tokenized vehicle: ${formData.vehiculo.marca} ${formData.vehiculo.linea}, ${formData.vehiculo.modelo}`,
-        image: '', // Will be set by the API route
+        name: `${formData.vehicleInfo.marca} ${formData.vehicleInfo.linea}`,
+        description: `Vehicle: ${formData.vehicleInfo.marca} ${formData.vehicleInfo.linea}, ${formData.vehicleInfo.modelo}`,
+        price: formData.nftSettings.price,
+        paymentToken: formData.nftSettings.paymentToken,
         attributes: [
-          { trait_type: 'Placa', value: formData.vehiculo.placa },
-          { trait_type: 'Marca', value: formData.vehiculo.marca },
-          { trait_type: 'Linea', value: formData.vehiculo.linea },
-          { trait_type: 'Modelo', value: formData.vehiculo.modelo },
-          { trait_type: 'Color', value: formData.vehiculo.color },
-          { trait_type: 'VIN', value: formData.vehiculo.vin },
+          { trait_type: 'Placa', value: formData.vehicleInfo.placa },
+          { trait_type: 'Marca', value: formData.vehicleInfo.marca },
+          { trait_type: 'Linea', value: formData.vehicleInfo.linea },
+          { trait_type: 'Modelo', value: formData.vehicleInfo.modelo },
+          { trait_type: 'Color', value: formData.vehicleInfo.color },
+          { trait_type: 'VIN', value: formData.vehicleInfo.vin },
+          { trait_type: 'Precio', value: formData.nftSettings.price },
+          { trait_type: 'Token', value: formData.nftSettings.paymentToken },
         ],
       };
 
       // Step 2: Upload to IPFS via API route
       const uploadFormData = new FormData();
-      if (formData.peritaje.tienePenitaje && formData.peritaje.archivo) {
-        uploadFormData.append('image', formData.peritaje.archivo);
+      
+      // Add image if available
+      if (formData.nftSettings.image) {
+        uploadFormData.append('image', formData.nftSettings.image);
       }
+      
       uploadFormData.append('metadata', JSON.stringify(metadata));
-      uploadFormData.append('placa', formData.vehiculo.placa);
+      uploadFormData.append('placa', formData.vehicleInfo.placa);
 
       const response = await fetch('/api/upload-to-ipfs', {
         method: 'POST',
@@ -322,7 +244,7 @@ export default function TokenizePage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        setUploadError(errorData.error || 'Failed to upload to IPFS');
+        setUploadError(errorData.error || 'Error al subir a IPFS');
         setSubmitStatus('error');
         return;
       }
@@ -333,27 +255,19 @@ export default function TokenizePage() {
         console.warn('IPFS Upload Warning:', warning);
       }
 
-      // Step 3: Prepare vehicle data for the contract
-      const vehicleDataToMint = {
-        brand: formData.vehiculo.marca,
-        model: formData.vehiculo.linea,
-        year: parseInt(formData.vehiculo.modelo),
-      };
-
-      // Step 4: Mint the NFT
+      // Step 3: Mint the NFT
       await mintVehicleNFT({
-        vehicleData: vehicleDataToMint,
         tokenMetadata: { uri: metadataUri },
       });
 
       setSubmitStatus('success');
     } catch (error) {
       setSubmitStatus('error');
-      console.error('Error during tokenization:', error);
+      console.error('Error durante la tokenización:', error);
       if (error instanceof Error) {
         setUploadError(error.message);
       } else {
-        setUploadError('An unknown error occurred');
+        setUploadError('Ocurrió un error desconocido');
       }
     }
   };
@@ -388,6 +302,19 @@ export default function TokenizePage() {
             <p className="font-bold">¡Tokenización Exitosa!</p>
             <p>Tu vehículo ha sido tokenizado. Ahora puedes verlo en tu colección.</p>
           </div>
+          {transactionUrl && (
+            <div className="mb-6 text-center">
+              <p className="text-gray-700 dark:text-gray-300 mb-2">Transacción:</p>
+              <a 
+                href={transactionUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 dark:text-blue-400 hover:underline break-all"
+              >
+                {transactionHash}
+              </a>
+            </div>
+          )}
           <div className="flex justify-center">
             <Link href="/cars" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
               Ver Mis Vehículos
@@ -437,6 +364,7 @@ export default function TokenizePage() {
         </Link>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tokenizar Tu Vehículo</h1>
       </div>
+      
       {/* Progress bar */}
       <div className="mb-8">
         <div className="flex justify-between mb-2">
@@ -462,80 +390,20 @@ export default function TokenizePage() {
           ></div>
         </div>
       </div>
+      
       <form onSubmit={onFormSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
         <p className="text-gray-700 dark:text-gray-300 font-medium mb-4">
-          Para este proceso es importante que tenga la tarjeta de propiedad del vehículo a la mano.
+          Para tokenizar tu vehículo necesitarás proporcionar la información básica del mismo.
         </p>
-        {errors['identity'] && (
-          <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded mb-4">
-            <p className="font-bold">{errors['identity']}</p>
-          </div>
-        )}
         
-        {/* Step 1: Owner Information */}
+        {/* Step 1: Basic Vehicle Information */}
         {currentStep === 1 && (
-          <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Propietario</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Nombre Completo *
-                </label>
-                <input
-                  type="text"
-                  name="nombreCompleto"
-                  value={formData.propietario.nombreCompleto}
-                  onChange={(e) => handleChange(e, 'propietario')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['propietario.nombreCompleto'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['propietario.nombreCompleto']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Tipo de Documento *
-                </label>
-                <select
-                  name="tipoDocumento"
-                  value={formData.propietario.tipoDocumento}
-                  onChange={(e) => handleChange(e, 'propietario')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Seleccione tipo de documento</option>
-                  {tiposDocumento.map((tipo) => (
-                    <option key={tipo} value={tipo}>{tipo}</option>
-                  ))}
-                </select>
-                {errors['propietario.tipoDocumento'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['propietario.tipoDocumento']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Número de Documento *
-                </label>
-                <input
-                  type="text"
-                  name="numeroDocumento"
-                  value={formData.propietario.numeroDocumento}
-                  onChange={(e) => handleChange(e, 'propietario')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['propietario.numeroDocumento'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['propietario.numeroDocumento']}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-        {/* Step 2: Vehicle Information */}
-        {currentStep === 2 && (
           <div>
             <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Información del Vehículo</h3>
             <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">
               Esta información será almacenada en los metadatos del NFT.
             </p>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -544,70 +412,35 @@ export default function TokenizePage() {
                 <input
                   type="text"
                   name="placa"
-                  value={formData.vehiculo.placa}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
+                  value={formData.vehicleInfo.placa}
+                  onChange={(e) => handleChange(e, 'vehicleInfo')}
                   className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
-                {errors['vehiculo.placa'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.placa']}</p>
+                {errors['vehicleInfo.placa'] && (
+                  <p className="text-red-500 text-xs mt-1">{errors['vehicleInfo.placa']}</p>
                 )}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Fecha de Matrícula Inicial (dd/mm/aaaa) *
-                </label>
-                <input
-                  type="text"
-                  name="fechaMatriculaInicial"
-                  value={formData.vehiculo.fechaMatriculaInicial}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  placeholder="dd/mm/aaaa"
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['vehiculo.fechaMatriculaInicial'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.fechaMatriculaInicial']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Clase de Vehículo *
-                </label>
-                <select
-                  name="claseVehiculo"
-                  value={formData.vehiculo.claseVehiculo}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Seleccione clase</option>
-                  {clasesVehiculo.map((clase) => (
-                    <option key={clase} value={clase}>{clase}</option>
-                  ))}
-                </select>
-                {errors['vehiculo.claseVehiculo'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.claseVehiculo']}</p>
-                )}
-              </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Marca *
                 </label>
                 <select
                   name="marca"
-                  value={formData.vehiculo.marca}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  disabled={!formData.vehiculo.claseVehiculo}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:dark:bg-gray-800 disabled:cursor-not-allowed"
+                  value={formData.vehicleInfo.marca}
+                  onChange={(e) => handleChange(e, 'vehicleInfo')}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Seleccione marca</option>
-                  {formData.vehiculo.claseVehiculo &&
-                    marcasPorTipo[formData.vehiculo.claseVehiculo as keyof typeof marcasPorTipo]?.map((marca) => (
-                      <option key={marca} value={marca}>{marca}</option>
-                    ))}
+                  {carBrands.map((brand) => (
+                    <option key={brand} value={brand}>{brand}</option>
+                  ))}
                 </select>
-                {errors['vehiculo.marca'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.marca']}</p>
+                {errors['vehicleInfo.marca'] && (
+                  <p className="text-red-500 text-xs mt-1">{errors['vehicleInfo.marca']}</p>
                 )}
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Línea (modelo específico) *
@@ -615,15 +448,16 @@ export default function TokenizePage() {
                 <input
                   type="text"
                   name="linea"
-                  value={formData.vehiculo.linea}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  placeholder="Ej. Corolla Altis"
+                  value={formData.vehicleInfo.linea}
+                  onChange={(e) => handleChange(e, 'vehicleInfo')}
+                  placeholder="Ej. Corolla, Civic, F-150"
                   className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
-                {errors['vehiculo.linea'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.linea']}</p>
+                {errors['vehicleInfo.linea'] && (
+                  <p className="text-red-500 text-xs mt-1">{errors['vehicleInfo.linea']}</p>
                 )}
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Modelo (Año) *
@@ -631,31 +465,17 @@ export default function TokenizePage() {
                 <input
                   type="number"
                   name="modelo"
-                  value={formData.vehiculo.modelo}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
+                  value={formData.vehicleInfo.modelo}
+                  onChange={(e) => handleChange(e, 'vehicleInfo')}
                   min="1900"
                   max={new Date().getFullYear() + 1}
                   className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
-                {errors['vehiculo.modelo'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.modelo']}</p>
+                {errors['vehicleInfo.modelo'] && (
+                  <p className="text-red-500 text-xs mt-1">{errors['vehicleInfo.modelo']}</p>
                 )}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Cilindraje (cc) *
-                </label>
-                <input
-                  type="number"
-                  name="cilindraje"
-                  value={formData.vehiculo.cilindraje}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['vehiculo.cilindraje'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.cilindraje']}</p>
-                )}
-              </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Color *
@@ -663,701 +483,170 @@ export default function TokenizePage() {
                 <input
                   type="text"
                   name="color"
-                  value={formData.vehiculo.color}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
+                  value={formData.vehicleInfo.color}
+                  onChange={(e) => handleChange(e, 'vehicleInfo')}
                   className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
-                {errors['vehiculo.color'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.color']}</p>
+                {errors['vehicleInfo.color'] && (
+                  <p className="text-red-500 text-xs mt-1">{errors['vehicleInfo.color']}</p>
                 )}
               </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Servicio *
-                </label>
-                <select
-                  name="servicio"
-                  value={formData.vehiculo.servicio}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Seleccione servicio</option>
-                  {tiposServicio.map((tipo) => (
-                    <option key={tipo} value={tipo}>{tipo}</option>
-                  ))}
-                </select>
-                {errors['vehiculo.servicio'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.servicio']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Tipo de Carrocería *
-                </label>
-                <select
-                  name="tipoCarroceria"
-                  value={formData.vehiculo.tipoCarroceria}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Seleccione tipo</option>
-                  {tiposCarroceria.map((tipo) => (
-                    <option key={tipo} value={tipo}>{tipo}</option>
-                  ))}
-                </select>
-                {errors['vehiculo.tipoCarroceria'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.tipoCarroceria']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Combustible *
-                </label>
-                <select
-                  name="combustible"
-                  value={formData.vehiculo.combustible}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Seleccione combustible</option>
-                  {tiposCombustible.map((tipo) => (
-                    <option key={tipo} value={tipo}>{tipo}</option>
-                  ))}
-                </select>
-                {errors['vehiculo.combustible'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.combustible']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Capacidad (KG/PSJ) *
-                </label>
-                <input
-                  type="text"
-                  name="capacidad"
-                  value={formData.vehiculo.capacidad}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['vehiculo.capacidad'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.capacidad']}</p>
-                )}
-              </div>
-            </div>
-            <h4 className="text-md font-semibold mt-6 mb-4 text-gray-800 dark:text-white">Información de Identificación</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Número de Motor *
-                </label>
-                <input
-                  type="text"
-                  name="numeroMotor"
-                  value={formData.vehiculo.numeroMotor}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['vehiculo.numeroMotor'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.numeroMotor']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  VIN *
+                  VIN (Número de Identificación del Vehículo) *
                 </label>
                 <input
                   type="text"
                   name="vin"
-                  value={formData.vehiculo.vin}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
+                  value={formData.vehicleInfo.vin}
+                  onChange={(e) => handleChange(e, 'vehicleInfo')}
                   className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
-                {errors['vehiculo.vin'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.vin']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Número de Serie *
-                </label>
-                <input
-                  type="text"
-                  name="numeroSerie"
-                  value={formData.vehiculo.numeroSerie}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['vehiculo.numeroSerie'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.numeroSerie']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Número de Chasis *
-                </label>
-                <input
-                  type="text"
-                  name="numeroChasis"
-                  value={formData.vehiculo.numeroChasis}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['vehiculo.numeroChasis'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.numeroChasis']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Blindaje *
-                </label>
-                <select
-                  name="blindaje"
-                  value={formData.vehiculo.blindaje}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Seleccione opción</option>
-                  {opcionesSiNo.map((opcion) => (
-                    <option key={opcion} value={opcion}>{opcion}</option>
-                  ))}
-                </select>
-                {errors['vehiculo.blindaje'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.blindaje']}</p>
-                )}
-              </div>
-            </div>
-            <h4 className="text-md font-semibold mt-6 mb-4 text-gray-800 dark:text-white">Información de Importación</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Declaración de Importación *
-                </label>
-                <input
-                  type="text"
-                  name="declaracionImportacion"
-                  value={formData.vehiculo.declaracionImportacion}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['vehiculo.declaracionImportacion'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.declaracionImportacion']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Fecha de Importación (dd/mm/aaaa) *
-                </label>
-                <input
-                  type="text"
-                  name="fechaImportacion"
-                  value={formData.vehiculo.fechaImportacion}
-                  onChange={(e) => handleChange(e, 'vehiculo')}
-                  placeholder="dd/mm/aaaa"
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['vehiculo.fechaImportacion'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['vehiculo.fechaImportacion']}</p>
+                <p className="text-xs text-gray-500 mt-1">El VIN debe tener 17 caracteres.</p>
+                {errors['vehicleInfo.vin'] && (
+                  <p className="text-red-500 text-xs mt-1">{errors['vehicleInfo.vin']}</p>
                 )}
               </div>
             </div>
           </div>
         )}
-        {/* Step 3: Vehicle Location */}
-        {currentStep === 3 && (
+        
+        {/* Step 2: NFT Settings & Image Upload */}
+        {currentStep === 2 && (
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Ubicación del Vehículo</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Configuración del NFT</h3>
             <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">
-              Esta información no será almacenada en los metadatos del NFT.
+              Configura el precio y sube una imagen para tu NFT.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Estado *
-                </label>
-                <select
-                  name="estado"
-                  value={formData.ubicacion.estado}
-                  onChange={(e) => handleChange(e, 'ubicacion')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Seleccione estado</option>
-                  {estadosVehiculo.map((estado) => (
-                    <option key={estado} value={estado}>{estado}</option>
-                  ))}
-                </select>
-                {errors['ubicacion.estado'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['ubicacion.estado']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Kilometraje *
-                </label>
-                <input
-                  type="number"
-                  name="kilometraje"
-                  value={formData.ubicacion.kilometraje}
-                  onChange={(e) => handleChange(e, 'ubicacion')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['ubicacion.kilometraje'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['ubicacion.kilometraje']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Contacto Celular (Opcional)
-                </label>
-                <input
-                  type="text"
-                  name="contactoCelular"
-                  value={formData.ubicacion.contactoCelular}
-                  onChange={(e) => handleChange(e, 'ubicacion')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['ubicacion.contactoCelular'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['ubicacion.contactoCelular']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Departamento *
-                </label>
-                <select
-                  name="departamento"
-                  value={formData.ubicacion.departamento}
-                  onChange={(e) => handleChange(e, 'ubicacion')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Seleccione departamento</option>
-                  {departamentos.map((depto) => (
-                    <option key={depto} value={depto}>{depto}</option>
-                  ))}
-                </select>
-                {errors['ubicacion.departamento'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['ubicacion.departamento']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Ciudad *
-                </label>
-                <input
-                  type="text"
-                  name="ciudad"
-                  value={formData.ubicacion.ciudad}
-                  onChange={(e) => handleChange(e, 'ubicacion')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['ubicacion.ciudad'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['ubicacion.ciudad']}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-        {/* Step 4: SOAT Information */}
-        {currentStep === 4 && (
-          <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">SOAT</h3>
-            <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">
-              Esta información no será almacenada en los metadatos del NFT.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Entidad que expide SOAT *
-                </label>
-                <input
-                  type="text"
-                  name="entidad"
-                  value={formData.soat.entidad}
-                  onChange={(e) => handleChange(e, 'soat')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['soat.entidad'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['soat.entidad']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Número de póliza *
-                </label>
-                <input
-                  type="text"
-                  name="numeroPoliza"
-                  value={formData.soat.numeroPoliza}
-                  onChange={(e) => handleChange(e, 'soat')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['soat.numeroPoliza'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['soat.numeroPoliza']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Fecha de expedición (dd/mm/aaaa) *
-                </label>
-                <input
-                  type="text"
-                  name="fechaExpedicion"
-                  value={formData.soat.fechaExpedicion}
-                  onChange={(e) => handleChange(e, 'soat')}
-                  placeholder="dd/mm/aaaa"
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['soat.fechaExpedicion'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['soat.fechaExpedicion']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Fecha inicio de vigencia (dd/mm/aaaa) *
-                </label>
-                <input
-                  type="text"
-                  name="fechaInicioVigencia"
-                  value={formData.soat.fechaInicioVigencia}
-                  onChange={(e) => handleChange(e, 'soat')}
-                  placeholder="dd/mm/aaaa"
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['soat.fechaInicioVigencia'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['soat.fechaInicioVigencia']}</p>
-                )}
-              </div>
-              <div className="md:col-span-2">
-                {formData.soat.fechaExpedicion &&
-                  formData.soat.fechaInicioVigencia &&
-                  isValidDate(formData.soat.fechaExpedicion) &&
-                  isValidDate(formData.soat.fechaInicioVigencia) && (
-                    <div
-                      className={`p-3 rounded ${
-                        formData.soat.vigente
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}
-                    >
-                      <p className="font-medium">
-                        {formData.soat.vigente ? 'SOAT Vigente' : 'SOAT No Vigente'}
-                      </p>
-                      <p className="text-sm">
-                        {formData.soat.vigente
-                          ? 'El SOAT se encuentra dentro del período de vigencia.'
-                          : 'El SOAT ha expirado. Es necesario renovarlo para poder tokenizar el vehículo.'}
-                      </p>
-                    </div>
-                  )}
-              </div>
-            </div>
-          </div>
-        )}
-        {/* Step 5: Technical Mechanical Information */}
-        {currentStep === 5 && (
-          <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Revisión Técnico-Mecánica</h3>
-            <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">
-              Esta información no será almacenada en los metadatos del NFT.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  CDA que expide RTM *
-                </label>
-                <input
-                  type="text"
-                  name="cda"
-                  value={formData.tecnicoMecanica.cda}
-                  onChange={(e) => handleChange(e, 'tecnicoMecanica')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['tecnicoMecanica.cda'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['tecnicoMecanica.cda']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Número de certificado *
-                </label>
-                <input
-                  type="text"
-                  name="numeroCertificado"
-                  value={formData.tecnicoMecanica.numeroCertificado}
-                  onChange={(e) => handleChange(e, 'tecnicoMecanica')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['tecnicoMecanica.numeroCertificado'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['tecnicoMecanica.numeroCertificado']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Fecha de expedición (dd/mm/aaaa) *
-                </label>
-                <input
-                  type="text"
-                  name="fechaExpedicion"
-                  value={formData.tecnicoMecanica.fechaExpedicion}
-                  onChange={(e) => handleChange(e, 'tecnicoMecanica')}
-                  placeholder="dd/mm/aaaa"
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['tecnicoMecanica.fechaExpedicion'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['tecnicoMecanica.fechaExpedicion']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Fecha de vigencia (dd/mm/aaaa) *
-                </label>
-                <input
-                  type="text"
-                  name="fechaVigencia"
-                  value={formData.tecnicoMecanica.fechaVigencia}
-                  onChange={(e) => handleChange(e, 'tecnicoMecanica')}
-                  placeholder="dd/mm/aaaa"
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['tecnicoMecanica.fechaVigencia'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['tecnicoMecanica.fechaVigencia']}</p>
-                )}
-              </div>
-              <div className="md:col-span-2">
-                {formData.tecnicoMecanica.fechaExpedicion &&
-                  formData.tecnicoMecanica.fechaVigencia &&
-                  isValidDate(formData.tecnicoMecanica.fechaExpedicion) &&
-                  isValidDate(formData.tecnicoMecanica.fechaVigencia) && (
-                    <div
-                      className={`p-3 rounded ${
-                        formData.tecnicoMecanica.vigente
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}
-                    >
-                      <p className="font-medium">
-                        {formData.tecnicoMecanica.vigente
-                          ? 'Revisión Técnico-Mecánica Vigente'
-                          : 'Revisión Técnico-Mecánica No Vigente'}
-                      </p>
-                      <p className="text-sm">
-                        {formData.tecnicoMecanica.vigente
-                          ? 'La Revisión Técnico-Mecánica se encuentra dentro del período de vigencia.'
-                          : 'La Revisión Técnico-Mecánica ha expirado. Es necesario renovarla para poder tokenizar el vehículo.'}
-                      </p>
-                    </div>
-                  )}
-              </div>
-            </div>
-          </div>
-        )}
-        {/* Step 6: Expert Assessment */}
-        {currentStep === 6 && (
-          <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Peritaje</h3>
-            <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">
-              Esta información no será almacenada en los metadatos del NFT.
-            </p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  ¿Tiene peritaje? *
-                </label>
-                <div className="flex items-center space-x-4">
-                  <label className="inline-flex items-center">
-                    <input
-                      type="radio"
-                      name="tienePenitaje"
-                      checked={formData.peritaje.tienePenitaje === true}
-                      onChange={() =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          peritaje: {
-                            ...prev.peritaje,
-                            tienePenitaje: true,
-                          },
-                        }))
-                      }
-                      className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Sí</span>
+            
+            {/* NFT Price Settings */}
+            <div className="mb-6">
+              <h4 className="text-md font-semibold mb-4 text-gray-800 dark:text-white">Precio</h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Precio *
                   </label>
-                  <label className="inline-flex items-center">
-                    <input
-                      type="radio"
-                      name="tienePenitaje"
-                      checked={formData.peritaje.tienePenitaje === false}
-                      onChange={() =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          peritaje: {
-                            ...prev.peritaje,
-                            tienePenitaje: false,
-                          },
-                        }))
-                      }
-                      className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
-                    <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">No</span>
-                  </label>
+                  <input
+                    type="number"
+                    name="price"
+                    step="0.000001"
+                    min="0"
+                    value={formData.nftSettings.price}
+                    onChange={(e) => handleChange(e, 'nftSettings')}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  {errors['nftSettings.price'] && (
+                    <p className="text-red-500 text-xs mt-1">{errors['nftSettings.price']}</p>
+                  )}
                 </div>
-                {errors['peritaje.tienePenitaje'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['peritaje.tienePenitaje']}</p>
-                )}
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Token de Pago *
+                  </label>
+                  <select
+                    name="paymentToken"
+                    value={formData.nftSettings.paymentToken}
+                    onChange={(e) => handleChange(e, 'nftSettings')}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {paymentTokens.map((token) => (
+                      <option key={token.name} value={token.name}>
+                        {token.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors['nftSettings.paymentToken'] && (
+                    <p className="text-red-500 text-xs mt-1">{errors['nftSettings.paymentToken']}</p>
+                  )}
+                </div>
               </div>
-              {formData.peritaje.tienePenitaje && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Entidad Emisora
-                    </label>
-                    <input
-                      type="text"
-                      name="entidadEmisora"
-                      value={formData.peritaje.entidadEmisora}
-                      onChange={(e) => handleChange(e, 'peritaje')}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            </div>
+            
+            {/* NFT Image Upload */}
+            <div className="mb-6">
+              <h4 className="text-md font-semibold mb-4 text-gray-800 dark:text-white">Imagen del NFT</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Sube una imagen que represente tu vehículo. Esta imagen será visible en la plataforma y marketplace.
+              </p>
+              
+              <div className="flex flex-col items-center justify-center">
+                {formData.nftSettings.imagePreview ? (
+                  <div className="mb-4 relative">
+                    <Image 
+                      src={formData.nftSettings.imagePreview} 
+                      alt="NFT Preview" 
+                      width={300}
+                      height={200}
+                      className="rounded-lg shadow-md"
                     />
-                    {errors['peritaje.entidadEmisora'] && (
-                      <p className="text-red-500 text-xs mt-1">{errors['peritaje.entidadEmisora']}</p>
-                    )}
+                    <button 
+                      type="button"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        nftSettings: {
+                          ...prev.nftSettings,
+                          image: null,
+                          imagePreview: null
+                        }
+                      }))}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                    >
+                      ×
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Adjuntar Archivo
-                    </label>
-                    <input
-                      type="file"
-                      onChange={(e) => handleFileUpload(e, 'peritaje', 'archivo')}
-                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    />
-                    {errors['peritaje.archivo'] && (
-                      <p className="text-red-500 text-xs mt-1">{errors['peritaje.archivo']}</p>
-                    )}
+                ) : (
+                  <div 
+                    className="mb-4 border-2 border-dashed border-gray-300 dark:border-gray-600 p-4 rounded-lg flex flex-col items-center justify-center w-full max-w-sm h-48 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750"
+                    onClick={() => document.getElementById('nft-image')?.click()}
+                  >
+                    <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center">Arrastra una imagen o haz clic para seleccionar</p>
                   </div>
-                </>
+                )}
+                
+                <input
+                  type="file"
+                  id="nft-image"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+                <label 
+                  htmlFor="nft-image"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors cursor-pointer"
+                >
+                  {formData.nftSettings.imagePreview ? 'Cambiar imagen' : 'Seleccionar imagen'}
+                </label>
+              </div>
+            </div>
+            
+            {/* Terms and Conditions */}
+            <div className="mt-6">
+              <div className="flex items-center">
+                <input
+                  id="aceptaTerminos"
+                  type="checkbox"
+                  checked={formData.aceptaTerminos}
+                  onChange={(e) => setFormData(prev => ({ ...prev, aceptaTerminos: e.target.checked }))}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="aceptaTerminos" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                  Acepto los términos y condiciones para la tokenización del vehículo
+                </label>
+              </div>
+              {errors['aceptaTerminos'] && (
+                <p className="text-red-500 text-xs mt-1">{errors['aceptaTerminos']}</p>
               )}
             </div>
           </div>
         )}
-        {/* Step 7: Insurance Information */}
-        {currentStep === 7 && (
-          <div>
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Seguro</h3>
-            <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">
-              Esta información no será almacenada en los metadatos del NFT.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Entidad Aseguradora *
-                </label>
-                <input
-                  type="text"
-                  name="entidadAseguradora"
-                  value={formData.seguro.entidadAseguradora}
-                  onChange={(e) => handleChange(e, 'seguro')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['seguro.entidadAseguradora'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['seguro.entidadAseguradora']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Número de póliza *
-                </label>
-                <input
-                  type="text"
-                  name="numeroPoliza"
-                  value={formData.seguro.numeroPoliza}
-                  onChange={(e) => handleChange(e, 'seguro')}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['seguro.numeroPoliza'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['seguro.numeroPoliza']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Fecha de expedición (dd/mm/aaaa) *
-                </label>
-                <input
-                  type="text"
-                  name="fechaExpedicion"
-                  value={formData.seguro.fechaExpedicion}
-                  onChange={(e) => handleChange(e, 'seguro')}
-                  placeholder="dd/mm/aaaa"
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['seguro.fechaExpedicion'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['seguro.fechaExpedicion']}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Fecha inicio de vigencia (dd/mm/aaaa) *
-                </label>
-                <input
-                  type="text"
-                  name="fechaInicioVigencia"
-                  value={formData.seguro.fechaInicioVigencia}
-                  onChange={(e) => handleChange(e, 'seguro')}
-                  placeholder="dd/mm/aaaa"
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-                {errors['seguro.fechaInicioVigencia'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['seguro.fechaInicioVigencia']}</p>
-                )}
-              </div>
-              <div className="md:col-span-2">
-                {formData.seguro.fechaExpedicion &&
-                  formData.seguro.fechaInicioVigencia &&
-                  isValidDate(formData.seguro.fechaExpedicion) &&
-                  isValidDate(formData.seguro.fechaInicioVigencia) && (
-                    <div
-                      className={`p-3 rounded ${
-                        formData.seguro.vigente
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}
-                    >
-                      <p className="font-medium">
-                        {formData.seguro.vigente ? 'Seguro Vigente' : 'Seguro No Vigente'}
-                      </p>
-                      <p className="text-sm">
-                        {formData.seguro.vigente
-                          ? 'El seguro se encuentra dentro del período de vigencia.'
-                          : 'El seguro ha expirado. Es necesario renovarlo para poder tokenizar el vehículo.'}
-                      </p>
-                    </div>
-                  )}
-              </div>
-              <div className="md:col-span-2 mt-4">
-                <div className="flex items-center">
-                  <input
-                    id="aceptaTerminos"
-                    name="aceptaTerminos"
-                    type="checkbox"
-                    checked={formData.aceptaTerminos}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        aceptaTerminos: e.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="aceptaTerminos" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                    Acepto los términos y condiciones para la tokenización del vehículo
-                  </label>
-                </div>
-                {errors['aceptaTerminos'] && (
-                  <p className="text-red-500 text-xs mt-1">{errors['aceptaTerminos']}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        
         {/* Submit button at bottom of form */}
         <div className="flex justify-between mt-8">
           {currentStep > 1 && (
@@ -1369,6 +658,7 @@ export default function TokenizePage() {
               Anterior
             </button>
           )}
+          
           {currentStep < totalSteps ? (
             <button
               type="button"
