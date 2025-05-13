@@ -4,29 +4,38 @@ import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { ConnectWallet } from '@coinbase/onchainkit/wallet';
 import Link from 'next/link';
-
-// The contract owner address
-const CONTRACT_OWNER = '0x3f9b734394FC1E96afe9523c69d30D227dF4ffca';
+import { useVehicleNFTV2 } from '@/app/hooks/useVehicleNFTV2';
 
 export default function OwnerAdminPage() {
   const { address, isConnected } = useAccount();
-  const [isOwner, setIsOwner] = useState(false);
+  const { 
+    authorizeMinter, 
+    isContractOwner, 
+    isLoading, 
+    transactionHash, 
+    transactionUrl,
+    ownerAddress,
+    contractAddress
+  } = useVehicleNFTV2();
+  
   const [walletAddress, setWalletAddress] = useState<string | undefined>(undefined);
+  const [isOwner, setIsOwner] = useState(false);
 
   // Check if the connected wallet is the contract owner
   useEffect(() => {
     if (address) {
       setWalletAddress(address);
-      setIsOwner(address.toLowerCase() === CONTRACT_OWNER.toLowerCase());
+      setIsOwner(isContractOwner());
     } else {
       setIsOwner(false);
     }
-  }, [address]);
+  }, [address, isContractOwner]);
 
-  // Form for authorizing minters manually
+  // Form for authorizing minters
   const [minterAddress, setMinterAddress] = useState('');
-  const [txHash, setTxHash] = useState('');
   const [authorizing, setAuthorizing] = useState(false);
+  const [authorizationError, setAuthorizationError] = useState<string | null>(null);
+  const [authorizationSuccess, setAuthorizationSuccess] = useState(false);
 
   // Authorization form handler
   const handleAuthorize = async (e: React.FormEvent) => {
@@ -38,23 +47,24 @@ export default function OwnerAdminPage() {
     }
     
     setAuthorizing(true);
+    setAuthorizationError(null);
+    setAuthorizationSuccess(false);
     
     try {
-      // Use ethers.js or another library to send the transaction directly
-      // This is just placeholder code - you'd need to implement the actual transaction
       console.log(`Authorizing minter: ${minterAddress}`);
       
-      // Simulate a transaction hash
-      setTxHash('0x' + Math.random().toString(16).substring(2, 66));
+      // Call the contract function to authorize a minter
+      await authorizeMinter(minterAddress as `0x${string}`);
       
-      // In a real implementation, you'd do:
-      // const tx = await signer.sendTransaction({...})
-      // setTxHash(tx.hash)
-      
-      alert('Authorization successful!');
+      setAuthorizationSuccess(true);
+      setMinterAddress(''); // Clear the input field
     } catch (error) {
       console.error('Error authorizing minter:', error);
-      alert('Error authorizing minter. See console for details.');
+      if (error instanceof Error) {
+        setAuthorizationError(error.message);
+      } else {
+        setAuthorizationError('An unknown error occurred while authorizing the minter.');
+      }
     } finally {
       setAuthorizing(false);
     }
@@ -91,7 +101,7 @@ export default function OwnerAdminPage() {
             <span className="font-medium">Your address:</span> {walletAddress}
           </p>
           <p className="text-gray-700 dark:text-gray-300">
-            <span className="font-medium">Owner address:</span> {CONTRACT_OWNER}
+            <span className="font-medium">Owner address:</span> {ownerAddress}
           </p>
           <p className="mt-2 text-gray-700 dark:text-gray-300">
             <span className="font-medium">Status:</span> 
@@ -105,9 +115,9 @@ export default function OwnerAdminPage() {
         
         {isOwner ? (
           <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Authorize Minter (Manual)</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">Authorize Minter</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Use this form to authorize an address to mint NFTs directly using your browser wallet.
+              Add an address to the list of authorized minters who can mint NFTs without being the contract owner.
             </p>
             
             <form onSubmit={handleAuthorize} className="space-y-4">
@@ -127,26 +137,43 @@ export default function OwnerAdminPage() {
               
               <button
                 type="submit"
-                disabled={authorizing}
+                disabled={authorizing || isLoading}
                 className={`px-4 py-2 ${
-                  authorizing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                } text-white font-medium rounded-lg transition-colors`}
+                  authorizing || isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                } text-white font-medium rounded-lg transition-colors flex items-center justify-center`}
               >
-                {authorizing ? 'Authorizing...' : 'Authorize Address'}
+                {authorizing || isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Authorizing...
+                  </>
+                ) : (
+                  'Authorize Address'
+                )}
               </button>
             </form>
             
-            {txHash && (
+            {authorizationSuccess && transactionHash && (
               <div className="mt-4 p-3 bg-green-100 dark:bg-green-900 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-200 rounded">
-                <p className="font-medium">Transaction Submitted!</p>
+                <p className="font-medium">Address Authorized Successfully!</p>
                 <a
-                  href={`https://sepolia.basescan.org/tx/${txHash}`}
+                  href={transactionUrl || `https://sepolia.basescan.org/tx/${transactionHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 dark:text-blue-400 hover:underline break-all block mt-2 text-sm"
                 >
-                  {txHash}
+                  View Transaction: {transactionHash}
                 </a>
+              </div>
+            )}
+            
+            {authorizationError && (
+              <div className="mt-4 p-3 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 rounded">
+                <p className="font-medium">Error Authorizing Address</p>
+                <p className="mt-1 text-sm">{authorizationError}</p>
               </div>
             )}
           </div>
@@ -154,7 +181,7 @@ export default function OwnerAdminPage() {
           <div className="mt-4 p-3 bg-yellow-100 dark:bg-yellow-900 border border-yellow-400 dark:border-yellow-700 text-yellow-700 dark:text-yellow-200 rounded">
             <p className="font-medium">You need to connect with the contract owner wallet to manage contract settings.</p>
             <p className="mt-2">
-              Please connect with: {CONTRACT_OWNER}
+              Please connect with: {ownerAddress}
             </p>
           </div>
         )}
@@ -165,12 +192,12 @@ export default function OwnerAdminPage() {
         <p className="text-gray-700 dark:text-gray-300 mb-2">
           <span className="font-medium">Contract Address:</span>{" "}
           <a 
-            href="https://sepolia.basescan.org/address/0x1C4cc777E309c6403Ce82e2332887470773A8a74" 
+            href={`https://sepolia.basescan.org/address/${contractAddress}`}
             target="_blank" 
             rel="noopener noreferrer"
             className="text-blue-600 dark:text-blue-400 hover:underline break-all"
           >
-            0x1C4cc777E309c6403Ce82e2332887470773A8a74
+            {contractAddress}
           </a>
         </p>
         <p className="text-gray-700 dark:text-gray-300">

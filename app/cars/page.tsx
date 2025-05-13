@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import { ConnectWallet } from '@coinbase/onchainkit/wallet';
-import Image from 'next/image';
+import NFTImageCard from '@/app/components/NFTImageCard';
 
 // Define a proper interface for car objects
 interface Car {
@@ -34,24 +34,32 @@ export default function CarsPage() {
         // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Mock car data
+        // Mock car data with both regular URLs and IPFS URIs
         const mockCars: Car[] = [
           {
             id: '1',
             title: 'Toyota Corolla 2022',
             image: 'https://images.unsplash.com/photo-1638618164682-12b986ec2a75?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
             status: 'Tokenized',
-            tokenId: '#1',
+            tokenId: '1',
             placa: 'ABC123',
           },
           {
             id: '2',
             title: 'Chevrolet Camaro 2020',
-            image: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d',
+            image: 'ipfs://QmZ4vLGb5KWQeqC3qJxQgjuV8GV1YBDwgdU4AJth3HVdEz',
             status: 'Listed for Sale',
-            tokenId: '#2',
+            tokenId: '2',
             placa: 'XYZ789',
             price: '2.8',
+          },
+          {
+            id: '3',
+            title: 'Honda Civic 2021',
+            image: 'ipfs://QmZ4vLGb5KWQeqC3qJxQgjuV8GV1YBDwgdU4AJth3HVdEz',
+            status: 'Tokenized',
+            tokenId: '3',
+            placa: 'DEF456',
           },
         ];
         
@@ -95,6 +103,12 @@ export default function CarsPage() {
           >
             Tokenize New Car
           </Link>
+          <Link
+            href="/cars/mint"
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+          >
+            Simple Mint
+          </Link>
         </div>
       </div>
       
@@ -118,47 +132,16 @@ export default function CarsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {cars.map(car => (
-            <div 
-              key={car.id} 
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
+            <NFTImageCard
+              key={car.id}
+              imageUri={car.image}
+              title={car.title}
+              tokenId={car.tokenId}
+              status={car.status}
+              placa={car.placa}
+              price={car.price}
               onClick={() => handleCardClick(car.id)}
-            >
-              <div className="relative h-48 w-full">
-                <Image
-                  src={car.image}
-                  alt={car.title}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                />
-                <div className="absolute top-0 right-0 bg-blue-600 text-white px-3 py-1 text-sm font-semibold">
-                  {car.status}
-                </div>
-                {car.price && (
-                  <div className="absolute bottom-0 right-0 bg-green-600 text-white px-3 py-1 text-sm font-semibold">
-                    {car.price} ETH
-                  </div>
-                )}
-              </div>
-              
-              <div className="p-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{car.title}</h3>
-                <div className="mb-2 space-y-1">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    <span className="font-medium">Token ID:</span> {car.tokenId}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    <span className="font-medium">Plate:</span> {car.placa}
-                  </p>
-                </div>
-                
-                <div className="mt-4 flex space-x-2">
-                  <button className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-medium rounded-lg transition-colors">
-                    View Details
-                  </button>
-                </div>
-              </div>
-            </div>
+            />
           ))}
         </div>
       )}

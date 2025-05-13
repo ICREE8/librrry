@@ -39,6 +39,15 @@ const VehicleNFT_V2 = {
       type: 'function',
     },
     {
+      inputs: [
+        { name: 'minter', type: 'address' }
+      ],
+      name: 'isMinterAuthorized',
+      outputs: [{ name: '', type: 'bool' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
       anonymous: false,
       inputs: [
         { indexed: true, name: 'to', type: 'address' },
@@ -52,8 +61,9 @@ const VehicleNFT_V2 = {
   contractName: 'VehicleNFT_V2',
 };
 
-// When deploying the new contract, update this address
+// Contract Information
 const CONTRACT_ADDRESS = '0x1C4cc777E309c6403Ce82e2332887470773A8a74';
+const CONTRACT_OWNER = '0x3f9b734394FC1E96afe9523c69d30D227dF4ffca';
 
 export function useVehicleNFTV2() {
   const contractConfig = {
@@ -69,13 +79,55 @@ export function useVehicleNFTV2() {
   });
 
   const isLoading = isPending || isConfirming;
+  
+  // Check if the connected wallet is the contract owner
+  const isContractOwner = (): boolean => {
+    if (!address) return false;
+    return address.toLowerCase() === CONTRACT_OWNER.toLowerCase();
+  };
+
+  // Smart mint function that tries both methods
+  const smartMintVehicleNFT = async (params: MintParams) => {
+    if (!address) throw new Error('Wallet not connected');
+    
+    try {
+      // Log all relevant information for debugging
+      console.log('Smart minting with:', {
+        contractAddress: CONTRACT_ADDRESS,
+        walletAddress: address,
+        isOwner: isContractOwner(),
+        tokenURI: params.tokenMetadata.uri
+      });
+      
+      // If the connected wallet is the contract owner, use the owner function
+      if (isContractOwner()) {
+        console.log('Using owner minting method...');
+        return writeContract({
+          ...contractConfig,
+          functionName: 'mintVehicleNFT',
+          args: [address, params.tokenMetadata.uri]
+        });
+      }
+      
+      // Otherwise, try the public mint function
+      console.log('Using public minting method...');
+      return writeContract({
+        ...contractConfig,
+        functionName: 'publicMintVehicleNFT',
+        args: [params.tokenMetadata.uri]
+      });
+    } catch (err) {
+      console.error('Error during smart minting:', err);
+      throw err;
+    }
+  };
 
   // Public mint function that doesn't require owner privileges
   const publicMintVehicleNFT = async (params: MintParams) => {
     if (!address) throw new Error('Wallet not connected');
     
     try {
-      console.log('Minting with:', {
+      console.log('Public minting with:', {
         contractAddress: CONTRACT_ADDRESS,
         walletAddress: address,
         tokenURI: params.tokenMetadata.uri
@@ -87,7 +139,7 @@ export function useVehicleNFTV2() {
         args: [params.tokenMetadata.uri]
       });
     } catch (err) {
-      console.error('Error minting NFT:', err);
+      console.error('Error during public minting:', err);
       throw err;
     }
   };
@@ -95,15 +147,26 @@ export function useVehicleNFTV2() {
   // Original mint function (owner only)
   const mintVehicleNFT = async (params: MintParams) => {
     if (!address) throw new Error('Wallet not connected');
+    if (!isContractOwner()) {
+      console.warn('Non-owner wallet attempting to use owner-only minting function');
+    }
     
     try {
+      console.log('Owner minting with:', {
+        contractAddress: CONTRACT_ADDRESS,
+        walletAddress: address,
+        recipientAddress: address,
+        isOwner: isContractOwner(),
+        tokenURI: params.tokenMetadata.uri
+      });
+      
       return writeContract({
         ...contractConfig,
         functionName: 'mintVehicleNFT',
         args: [address, params.tokenMetadata.uri]
       });
     } catch (err) {
-      console.error('Error minting NFT:', err);
+      console.error('Error during owner minting:', err);
       throw err;
     }
   };
@@ -111,8 +174,10 @@ export function useVehicleNFTV2() {
   // Function to authorize a minter (owner only)
   const authorizeMinter = async (minterAddress: `0x${string}`) => {
     if (!address) throw new Error('Wallet not connected');
+    if (!isContractOwner()) throw new Error('Only the contract owner can authorize minters');
     
     try {
+      console.log(`Authorizing minter address: ${minterAddress}`);
       return writeContract({
         ...contractConfig,
         functionName: 'authorizeMinter',
@@ -132,13 +197,17 @@ export function useVehicleNFTV2() {
   };
 
   return { 
-    mintVehicleNFT, 
+    mintVehicleNFT,
     publicMintVehicleNFT,
+    smartMintVehicleNFT,
     authorizeMinter,
+    isContractOwner,
     isLoading, 
     isSuccess, 
     error,
     transactionHash: hash,
-    transactionUrl: getTransactionUrl()
+    transactionUrl: getTransactionUrl(),
+    contractAddress: CONTRACT_ADDRESS,
+    ownerAddress: CONTRACT_OWNER
   };
 } 

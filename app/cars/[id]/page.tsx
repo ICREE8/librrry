@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import { ConnectWallet } from '@coinbase/onchainkit/wallet';
 import Image from 'next/image';
+import IPFSImage from '@/app/components/IPFSImage';
 
 // ✅ Improved types with specific properties instead of any
 interface Car {
@@ -196,17 +197,36 @@ export default function CarDetailsPage() {
       
       {/* Car Header with Image */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-6">
-        <div className="relative h-64 w-full">
-          <Image 
-            src={carDetails.image} 
-            alt={carDetails.title}
-            layout="fill"
-            objectFit="cover"
-            priority
-          />
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-4">
-            <h2 className="text-2xl font-bold text-white">{carDetails.title}</h2>
-            <p className="text-white">Token ID: {carDetails.tokenId}</p>
+        <div className="relative h-64 w-full sm:h-96">
+          {carDetails.image.startsWith('ipfs://') ? (
+            <IPFSImage
+              ipfsUri={carDetails.image}
+              alt={carDetails.title}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 768px, 1024px"
+              priority
+            />
+          ) : (
+            <Image 
+              src={carDetails.image} 
+              alt={carDetails.title} 
+              fill 
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 768px, 1024px"
+              priority
+            />
+          )}
+          
+          <div className="absolute top-0 right-0 p-4 flex flex-col gap-2">
+            <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+              {carDetails.status}
+            </span>
+            {carDetails.price && (
+              <span className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                {carDetails.price} ETH
+              </span>
+            )}
           </div>
         </div>
       </div>

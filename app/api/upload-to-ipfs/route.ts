@@ -17,53 +17,68 @@ const pinata = PINATA_API_KEY && PINATA_API_SECRET
     })
   : null;
 
+// Define an interface for metadata attributes
+interface MetadataAttribute {
+  trait_type: string;
+  value: string | number;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // Check if Pinata client is available
-    if (!pinata) {
-      console.warn('Pinata API credentials are missing. Using default image.');
-      const metadata = await request.formData().then(form => form.get('metadata') as string);
-      
-      if (!metadata) {
-        return NextResponse.json({ error: 'Metadata is required' }, { status: 400 });
-      }
-      
-      // Parse metadata and add default image
-      const metadataObj = JSON.parse(metadata);
-      metadataObj.image = `ipfs://${DEFAULT_IMAGE_CID}`;
-      
-      // Return a mock metadata URI since we can't upload to IPFS
-      return NextResponse.json({ 
-        metadataUri: `ipfs://${DEFAULT_IMAGE_CID}`,
-        warning: 'Using default image due to missing Pinata credentials'
-      }, { status: 200 });
-    }
-
+    // Extract all form data
     const formData = await request.formData();
     const imageFile = formData.get('image') as File | null;
     const metadata = formData.get('metadata') as string;
     const placa = formData.get('placa') as string;
-
+    
     if (!metadata) {
       return NextResponse.json({ error: 'Metadata is required' }, { status: 400 });
     }
+    
+    // Parse metadata
+    let metadataObj;
+    try {
+      metadataObj = JSON.parse(metadata);
+    } catch {
+      return NextResponse.json({ error: 'Invalid metadata JSON format' }, { status: 400 });
+    }
 
+    // Add timestamp to metadata
+    metadataObj.created_at = new Date().toISOString();
+    
+    // Handle image upload
     let imageCid = '';
+    let imageUploadSuccess = false;
+    
     if (imageFile) {
       try {
-        // Convert File to Buffer and create a readable stream
-        const buffer = Buffer.from(await imageFile.arrayBuffer());
-        const stream = new Readable();
-        stream.push(buffer);
-        stream.push(null);
+        // Check if Pinata client is available
+        if (!pinata) {
+          console.warn('Pinata API credentials missing. Using default image.');
+          imageCid = `ipfs://${DEFAULT_IMAGE_CID}`;
+        } else {
+          // Convert File to Buffer and create a readable stream
+          const buffer = Buffer.from(await imageFile.arrayBuffer());
+          const stream = new Readable();
+          stream.push(buffer);
+          stream.push(null);
 
-        const fileName = `car-image-${placa || 'unknown'}.${imageFile.name.split('.').pop()}`;
-        const imageUploadResult = await pinata.pinFileToIPFS(stream, {
-          pinataMetadata: {
-            name: fileName,
-          },
-        });
-        imageCid = `ipfs://${imageUploadResult.IpfsHash}`;
+          const fileName = `vehicle-image-${placa || 'unknown'}-${Date.now()}.${imageFile.name.split('.').pop()}`;
+          
+          // Add metadata for the image file
+          const imageUploadResult = await pinata.pinFileToIPFS(stream, {
+            pinataMetadata: {
+              name: fileName,
+            },
+            pinataOptions: {
+              cidVersion: 1
+            }
+          });
+          
+          imageCid = `ipfs://${imageUploadResult.IpfsHash}`;
+          imageUploadSuccess = true;
+          console.log(`Image uploaded to IPFS: ${imageCid}`);
+        }
       } catch (imageError) {
         console.error('Error uploading image to IPFS:', imageError);
         imageCid = `ipfs://${DEFAULT_IMAGE_CID}`;
@@ -73,18 +88,60 @@ export async function POST(request: NextRequest) {
       imageCid = `ipfs://${DEFAULT_IMAGE_CID}`;
     }
 
-    const metadataObj = JSON.parse(metadata);
+    // Add image to metadata
     metadataObj.image = imageCid;
     
+    // Add vehicle type attributes if not present
+    if (!metadataObj.attributes) {
+      metadataObj.attributes = [];
+    }
+    
+    // Add placa as attribute if not already present
+    if (placa && !metadataObj.attributes.some((attr: MetadataAttribute) => attr.trait_type === 'Placa')) {
+      metadataObj.attributes.push({
+        trait_type: 'Placa',
+        value: placa
+      });
+    }
+    
+    // Add timestamp as attribute
+    metadataObj.attributes.push({
+      trait_type: 'Timestamp',
+      value: metadataObj.created_at
+    });
+
+    // Upload metadata to IPFS
     try {
+      // Check if Pinata client is available
+      if (!pinata) {
+        console.warn('Pinata API credentials missing. Cannot upload metadata to IPFS.');
+        return NextResponse.json({ 
+          metadataUri: `ipfs://${DEFAULT_IMAGE_CID}`,
+          warning: 'Using mock metadata URI due to missing Pinata credentials'
+        }, { status: 200 });
+      }
+      
+      const metadataFileName = `vehicle-metadata-${placa || 'unknown'}-${Date.now()}.json`;
+      
       const metadataUploadResult = await pinata.pinJSONToIPFS(metadataObj, {
         pinataMetadata: {
-          name: `metadata-${placa || 'unknown'}.json`,
+          name: metadataFileName,
         },
+        pinataOptions: {
+          cidVersion: 1
+        }
       });
-      const metadataUri = `ipfs://${metadataUploadResult.IpfsHash}`;
       
-      return NextResponse.json({ metadataUri }, { status: 200 });
+      const metadataUri = `ipfs://${metadataUploadResult.IpfsHash}`;
+      console.log(`Metadata uploaded to IPFS: ${metadataUri}`);
+      
+      // Return success with uris
+      return NextResponse.json({ 
+        metadataUri,
+        imageCid,
+        imageUploadSuccess,
+        warning: !imageUploadSuccess ? 'Used default image due to upload error or missing image' : undefined
+      }, { status: 200 });
     } catch (metadataError) {
       console.error('Error uploading metadata to IPFS:', metadataError);
       return NextResponse.json({ 
