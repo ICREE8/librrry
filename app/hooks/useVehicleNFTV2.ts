@@ -54,8 +54,6 @@ const VehicleNFT_V2 = {
 
 // When deploying the new contract, update this address
 const CONTRACT_ADDRESS = '0x1C4cc777E309c6403Ce82e2332887470773A8a74';
-// The contract owner address
-const CONTRACT_OWNER = '0x3f9b734394FC1E96afe9523c69d30D227dF4ffca';
 
 export function useVehicleNFTV2() {
   const contractConfig = {
