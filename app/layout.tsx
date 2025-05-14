@@ -5,6 +5,7 @@ import { Providers } from './providers';
 import Navbar from './components/Navbar';
 import { ClientComponents } from './components/ClientComponents';
 
+
 export const metadata: Metadata = {
   title: 'CarP2P - Tokenize and Trade Vehicles',
   description: 'Tokenize your vehicles, trade them as NFTs, and use them as collateral for loans',
