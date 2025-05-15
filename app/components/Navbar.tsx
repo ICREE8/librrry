@@ -10,9 +10,10 @@ import { useState, useEffect } from 'react';
 export default function Navbar() {
   const pathname = usePathname();
   const { isConnected } = useAccount();
-  const { isContractOwner } = useVehicleNFTV2();
+  const vehicleNFTV2 = useVehicleNFTV2(); // Call the hook to get the object
+  const { isContractOwner } = vehicleNFTV2; // Destructure from the returned object
   const [isOwner, setIsOwner] = useState(false);
-  
+
   // Check if the user is the contract owner on mount and when connection changes
   useEffect(() => {
     if (isConnected) {
@@ -21,7 +22,7 @@ export default function Navbar() {
       setIsOwner(false);
     }
   }, [isConnected, isContractOwner]);
-  
+
   const isActive = (path: string) => {
     return pathname === path ? 'text-blue-500 font-bold' : 'text-gray-700 dark:text-gray-300';
   };
@@ -33,15 +34,14 @@ export default function Navbar() {
           <Link href="/" className="text-2xl font-bold text-blue-600 dark:text-blue-400">
             CarP2P
           </Link>
-          
-          {/* Display admin badge if user is contract owner */}
+
           {isOwner && (
             <span className="ml-2 px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
               Admin
             </span>
           )}
         </div>
-        
+
         <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-8">
           <div className="flex space-x-6">
             <Link href="/profile" className={`${isActive('/profile')} hover:text-blue-600 transition-colors`}>
@@ -59,11 +59,10 @@ export default function Navbar() {
             <Link href="/marketplace" className={`${isActive('/marketplace')} hover:text-blue-600 transition-colors`}>
               Marketplace
             </Link>
-            
-            {/* Admin link - only visible to contract owner */}
+
             {isOwner && (
-              <Link 
-                href="/admin/owner" 
+              <Link
+                href="/admin/owner"
                 className={`${isActive('/admin/owner')} hover:text-blue-600 transition-colors relative group`}
               >
                 Admin
@@ -71,7 +70,7 @@ export default function Navbar() {
               </Link>
             )}
           </div>
-          
+
           <div className="mt-4 md:mt-0">
             <ConnectWallet />
           </div>
@@ -79,4 +78,4 @@ export default function Navbar() {
       </div>
     </nav>
   );
-} 
+}
